@@ -173,7 +173,7 @@ mod TestRebalance {
 
         let target_ltv = (SCALE / 2).try_into().unwrap();
         let target_ltv_tolerance = 0;
-        let target_ltv_min_delta = 0;
+        let target_ltv_min_delta = 1;
 
         start_prank(CheatTarget::One(rebalance.contract_address), user);
         rebalance
@@ -331,8 +331,8 @@ mod TestRebalance {
         );
 
         let target_ltv = (SCALE / 2).try_into().unwrap();
-        let target_ltv_tolerance = (SCALE / 100).try_into().unwrap();
-        let target_ltv_min_delta = 0;
+        let target_ltv_tolerance = SCALE_128 / 100;
+        let target_ltv_min_delta = target_ltv_tolerance + 1;
 
         start_prank(CheatTarget::One(rebalance.contract_address), user);
         rebalance
@@ -441,7 +441,7 @@ mod TestRebalance {
 
         let target_ltv = (SCALE / 2).try_into().unwrap();
         let target_ltv_tolerance = (SCALE / 100).try_into().unwrap();
-        let target_ltv_min_delta = 0;
+        let target_ltv_min_delta = target_ltv_tolerance + 1;
 
         start_prank(CheatTarget::One(rebalance.contract_address), user);
         rebalance
@@ -621,7 +621,7 @@ mod TestRebalance {
 
         let target_ltv = (SCALE / 4).try_into().unwrap();
         let target_ltv_tolerance = (SCALE / 100).try_into().unwrap();
-        let target_ltv_min_delta = 0;
+        let target_ltv_min_delta = target_ltv_tolerance + 1;
 
         start_prank(CheatTarget::One(rebalance.contract_address), user);
         rebalance
@@ -724,8 +724,8 @@ mod TestRebalance {
         let TestConfig { singleton, rebalance, pool_id, eth, usdc, user, .. } = setup(0);
 
         let target_ltv = (SCALE / 4).try_into().unwrap();
-        let target_ltv_tolerance = (SCALE).try_into().unwrap();
-        let target_ltv_min_delta = 0;
+        let target_ltv_tolerance = (SCALE / 10).try_into().unwrap();
+        let target_ltv_min_delta = target_ltv_tolerance + 1;
 
         start_prank(CheatTarget::One(rebalance.contract_address), user);
         rebalance
@@ -816,7 +816,7 @@ mod TestRebalance {
                     ],
                     token_amount: TokenAmount {
                         token: usdc.contract_address,
-                        amount: i129_new((1415972041).try_into().unwrap(), false)
+                        amount: i129_new((2691187944).try_into().unwrap(), false)
                     }
                 },
                 Swap {
@@ -839,7 +839,7 @@ mod TestRebalance {
                     ],
                     token_amount: TokenAmount {
                         token: usdc.contract_address,
-                        amount: i129_new((202281720).try_into().unwrap(), false)
+                        amount: i129_new((200000000).try_into().unwrap(), false)
                     }
                 },
             ],

@@ -158,8 +158,20 @@ pub mod Rebalance {
                 rebalance_params
                 .clone();
 
-            let (_, delta_usd, _, _) = self.delta(pool_id, collateral_asset, debt_asset, user);
+            let TargetLTVConfig { target_ltv, target_ltv_tolerance, target_ltv_min_delta } = self
+                .target_ltv_config
+                .read((pool_id, collateral_asset, debt_asset, user));
+
+            let (current_ltv, delta_usd, _, _) = self
+                .delta(pool_id, collateral_asset, debt_asset, user);
             assert!(delta_usd.abs != 0, "zero-delta");
+
+            let ltv_delta = if target_ltv.into() > current_ltv {
+                target_ltv.into() - current_ltv
+            } else {
+                current_ltv - target_ltv.into()
+            };
+            assert!(ltv_delta >= target_ltv_min_delta.into(), "target-ltv-min-delta");
 
             let (collateral_delta, debt_delta) = if !delta_usd.is_negative {
                 self.increase_lever(rebalance_params)
@@ -169,24 +181,12 @@ pub mod Rebalance {
 
             let (current_ltv, _, _, _) = self.delta(pool_id, collateral_asset, debt_asset, user);
 
-            let TargetLTVConfig { target_ltv, target_ltv_tolerance, target_ltv_min_delta } = self
-                .target_ltv_config
-                .read((pool_id, collateral_asset, debt_asset, user));
-
             assert!(
                 (target_ltv < target_ltv_tolerance
                     || (target_ltv - target_ltv_tolerance).into() <= current_ltv)
                     && current_ltv <= (target_ltv + target_ltv_tolerance).into(),
                 "target-ltv-tolerance"
             );
-
-            let ltv_delta = if target_ltv.into() > current_ltv {
-                target_ltv.into() - current_ltv
-            } else {
-                current_ltv - target_ltv.into()
-            };
-
-            assert!(ltv_delta >= target_ltv_min_delta.into(), "target-ltv-min-delta");
 
             RebalanceResponse { collateral_delta, debt_delta }
         }
@@ -404,7 +404,7 @@ pub mod Rebalance {
                 .ltv_config(pool_id, collateral_asset, debt_asset);
 
             assert!(target_ltv < ltv_config.max_ltv.into() * 90 / 100, "invalid-target-ltv");
-            // assert!(target_ltv_tolerance < target_ltv, "invalid-target-ltv-tolerance");
+            assert!(target_ltv_tolerance < target_ltv_min_delta, "invalid-target-ltv-tolerance");
 
             self
                 .target_ltv_config
