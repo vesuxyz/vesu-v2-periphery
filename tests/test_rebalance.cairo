@@ -146,6 +146,9 @@ mod TestRebalance {
             .permissioned_mint(user, 10000_000_000);
         stop_prank(CheatTarget::One(usdt.contract_address));
 
+        rebalance.set_rebalancer(get_contract_address(), true);
+        rebalance.set_rebalancer(contract_address_const::<'0x1'>(), true);
+
         let test_config = TestConfig {
             ekubo,
             singleton,
@@ -162,6 +165,28 @@ mod TestRebalance {
         };
 
         test_config
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: "only-rebalancer")]
+    #[fork("Mainnet")]
+    fn test_rebalance_increase_only_rebalancer() {
+        let TestConfig { rebalance, pool_id, eth, usdc, user, .. } = setup(0);
+
+        let rebalance_params = RebalanceParams {
+            pool_id,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            rebalance_swap: array![],
+            rebalance_swap_limit_amount: 0,
+            fee_recipient: Zero::zero()
+        };
+
+        start_prank(CheatTarget::One(rebalance.contract_address), contract_address_const::<'0x2'>());
+        rebalance.rebalance_position(rebalance_params.clone());
+        stop_prank(CheatTarget::One(rebalance.contract_address));
     }
 
     #[test]

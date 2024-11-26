@@ -23,6 +23,8 @@ pub struct RebalanceParams {
 
 #[starknet::interface]
 pub trait IRebalance<TContractState> {
+    fn set_rebalancer(ref self: TContractState, rebalancer: ContractAddress, allowed: bool);
+    fn approved_rebalancer(self: @TContractState) -> bool;
     fn fee_rate(self: @TContractState) -> u128;
     fn set_target_ltv_config(
         ref self: TContractState,
@@ -85,6 +87,7 @@ pub mod Rebalance {
     struct Storage {
         core: ICoreDispatcher,
         singleton: ISingletonDispatcher,
+        rebalancers: LegacyMap::<ContractAddress, bool>,
         fee_rate: u128,
         // (pool_id, collateral_asset, debt_asset, user) -> target_ltv_config
         target_ltv_config: LegacyMap::<
@@ -93,12 +96,10 @@ pub mod Rebalance {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct ClaimFees {
+    struct SetRebalancer {
         #[key]
-        recipient: ContractAddress,
-        #[key]
-        token: ContractAddress,
-        amount: u256
+        rebalancer: ContractAddress,
+        allowed: bool
     }
 
     #[derive(Drop, starknet::Event)]
@@ -132,9 +133,9 @@ pub mod Rebalance {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
+        SetRebalancer: SetRebalancer,
         SetTargetLTVConfig: SetTargetLTVConfig,
-        ClaimFees: ClaimFees,
-        Rebalance: Rebalance
+        Rebalance: Rebalance,
     }
 
     #[constructor]
@@ -385,6 +386,15 @@ pub mod Rebalance {
 
     #[abi(embed_v0)]
     impl RebalanceImpl of IRebalance<ContractState> {
+        fn set_rebalancer(ref self: ContractState, rebalancer: ContractAddress, allowed: bool) {
+            self.rebalancers.write(rebalancer, allowed);
+            self.emit(SetRebalancer { rebalancer, allowed });
+        }
+
+        fn approved_rebalancer(self: @ContractState) -> bool {
+            self.rebalancers.read(get_caller_address())
+        }
+
         fn fee_rate(self: @ContractState) -> u128 {
             self.fee_rate.read()
         }
@@ -474,6 +484,7 @@ pub mod Rebalance {
         fn rebalance_position(
             ref self: ContractState, rebalance_params: RebalanceParams
         ) -> RebalanceResponse {
+            assert!(self.rebalancers.read(get_caller_address()), "only-rebalancer");
             call_core_with_callback(self.core.read(), @rebalance_params)
         }
     }
