@@ -23,6 +23,7 @@ pub struct RebalanceParams {
 
 #[starknet::interface]
 pub trait IRebalance<TContractState> {
+    fn set_owner(ref self: TContractState, owner: ContractAddress);
     fn set_rebalancer(ref self: TContractState, rebalancer: ContractAddress, allowed: bool);
     fn approved_rebalancer(self: @TContractState) -> bool;
     fn fee_rate(self: @TContractState) -> u128;
@@ -87,12 +88,21 @@ pub mod Rebalance {
     struct Storage {
         core: ICoreDispatcher,
         singleton: ISingletonDispatcher,
+        owner: ContractAddress,
         rebalancers: LegacyMap::<ContractAddress, bool>,
         fee_rate: u128,
         // (pool_id, collateral_asset, debt_asset, user) -> target_ltv_config
         target_ltv_config: LegacyMap::<
             (felt252, ContractAddress, ContractAddress, ContractAddress), TargetLTVConfig
         >,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SetOwner {
+        #[key]
+        new_owner: ContractAddress,
+        #[key]
+        prev_owner: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
@@ -133,6 +143,7 @@ pub mod Rebalance {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
+        SetOwner: SetOwner,
         SetRebalancer: SetRebalancer,
         SetTargetLTVConfig: SetTargetLTVConfig,
         Rebalance: Rebalance,
@@ -143,11 +154,15 @@ pub mod Rebalance {
         ref self: ContractState,
         core: ICoreDispatcher,
         singleton: ISingletonDispatcher,
+        owner: ContractAddress,
         fee_rate: u128
     ) {
         self.core.write(core);
         self.singleton.write(singleton);
         self.fee_rate.write(fee_rate);
+
+        self.owner.write(owner);
+        self.emit(SetOwner { new_owner: owner, prev_owner: Zero::zero() });
     }
 
     #[generate_trait]
@@ -386,7 +401,15 @@ pub mod Rebalance {
 
     #[abi(embed_v0)]
     impl RebalanceImpl of IRebalance<ContractState> {
+        fn set_owner(ref self: ContractState, owner: ContractAddress) {
+            assert!(get_caller_address() == self.owner.read(), "only-owner");
+            let prev_owner = self.owner.read();
+            self.owner.write(owner);
+            self.emit(SetOwner { new_owner: owner, prev_owner });
+        }
+
         fn set_rebalancer(ref self: ContractState, rebalancer: ContractAddress, allowed: bool) {
+            assert!(get_caller_address() == self.owner.read(), "only-owner");
             self.rebalancers.write(rebalancer, allowed);
             self.emit(SetRebalancer { rebalancer, allowed });
         }

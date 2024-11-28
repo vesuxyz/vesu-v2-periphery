@@ -70,6 +70,7 @@ mod TestRebalance {
                 array![
                     ekubo.contract_address.into(),
                     singleton.contract_address.into(),
+                    get_contract_address().into(),
                     fee_rate.into()
                 ]
             )
@@ -169,6 +170,32 @@ mod TestRebalance {
 
     #[test]
     #[available_gas(20000000)]
+    #[should_panic(expected: "only-owner")]
+    #[fork("Mainnet")]
+    fn test_rebalance_set_owner() {
+        let TestConfig { rebalance, .. } = setup(0);
+
+        start_prank(
+            CheatTarget::One(rebalance.contract_address), contract_address_const::<'0x3'>()
+        );
+        rebalance.set_owner(get_contract_address());
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: "only-owner")]
+    #[fork("Mainnet")]
+    fn test_rebalance_set_rebalancer() {
+        let TestConfig { rebalance, .. } = setup(0);
+
+        start_prank(
+            CheatTarget::One(rebalance.contract_address), contract_address_const::<'0x3'>()
+        );
+        rebalance.set_rebalancer(get_contract_address(), true);
+    }
+
+    #[test]
+    #[available_gas(20000000)]
     #[should_panic(expected: "only-rebalancer")]
     #[fork("Mainnet")]
     fn test_rebalance_increase_only_rebalancer() {
@@ -184,7 +211,9 @@ mod TestRebalance {
             fee_recipient: Zero::zero()
         };
 
-        start_prank(CheatTarget::One(rebalance.contract_address), contract_address_const::<'0x2'>());
+        start_prank(
+            CheatTarget::One(rebalance.contract_address), contract_address_const::<'0x2'>()
+        );
         rebalance.rebalance_position(rebalance_params.clone());
         stop_prank(CheatTarget::One(rebalance.contract_address));
     }
