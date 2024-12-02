@@ -370,7 +370,10 @@ pub mod Rebalance {
                     }
                 );
 
-            assert!(collateral_amount.amount.mag.into() == collateral_delta.abs, "excess-collateral-withdrawal");
+            assert!(
+                collateral_amount.amount.mag.into() == collateral_delta.abs,
+                "excess-collateral-withdrawal"
+            );
             assert!(debt_amount.amount.mag.into() == debt_delta.abs, "excess-debt-repayment");
 
             // - handleDelta: settle collateral asset (1.)
