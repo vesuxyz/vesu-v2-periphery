@@ -5,11 +5,7 @@ use vesu_periphery::swap::{Swap};
 #[starknet::interface]
 pub trait I4626<TContractState> {
     fn asset(ref self: TContractState) -> ContractAddress;
-    fn deposit(
-        ref self: TContractState, 
-        assets: u256,
-        recipient: ContractAddress
-    ) -> u256;
+    fn deposit(ref self: TContractState, assets: u256, recipient: ContractAddress) -> u256;
 }
 
 #[derive(Serde, Drop, Clone)]
@@ -106,7 +102,9 @@ pub mod Multiply4626 {
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, core: ICoreDispatcher, singleton: ISingletonDispatcher) {
+    fn constructor(
+        ref self: ContractState, core: ICoreDispatcher, singleton: ISingletonDispatcher
+    ) {
         self.core.write(core);
         self.singleton.write(singleton);
     }
@@ -124,8 +122,7 @@ pub mod Multiply4626 {
             add_margin,
             margin_swap,
             margin_swap_limit_amount,
-            lever_amount
-            } =
+            lever_amount } =
                 increase_lever_params;
 
             let debt_asset = I4626Dispatcher { contract_address: collateral_asset }.asset();
@@ -176,20 +173,13 @@ pub mod Multiply4626 {
             };
 
             // flashloan lever_amount
-            handle_delta(
-                core,
-                debt_asset,
-                i129_new(lever_amount, true),
-                get_contract_address()
-            );
+            handle_delta(core, debt_asset, i129_new(lever_amount, true), get_contract_address());
 
-            IERC20Dispatcher { contract_address: debt_asset }.approve(
-                collateral_asset, (margin_amount + lever_amount).into()
-            );
+            IERC20Dispatcher { contract_address: debt_asset }
+                .approve(collateral_asset, (margin_amount + lever_amount).into());
 
-            let wrapped_amount = I4626Dispatcher { contract_address: collateral_asset }.deposit(
-                (margin_amount + lever_amount).into(), get_contract_address()
-            );
+            let wrapped_amount = I4626Dispatcher { contract_address: collateral_asset }
+                .deposit((margin_amount + lever_amount).into(), get_contract_address());
 
             let singleton = self.singleton.read();
 
@@ -223,12 +213,7 @@ pub mod Multiply4626 {
 
             assert!(lever_amount.into() == debt_delta.abs, "invalid-debt-delta");
 
-            handle_delta(
-                core,
-                debt_asset,
-                i129_new(lever_amount, false),
-                get_contract_address()
-            );
+            handle_delta(core, debt_asset, i129_new(lever_amount, false), get_contract_address());
 
             self
                 .emit(

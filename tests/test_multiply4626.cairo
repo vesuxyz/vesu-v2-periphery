@@ -23,13 +23,15 @@ mod Test_974640_Multiply4626 {
     use vesu::{
         units::{SCALE, SCALE_128},
         data_model::{Amount, AmountType, AmountDenomination, ModifyPositionParams},
-        singleton::{ISingletonDispatcher, ISingletonDispatcherTrait},
-        test::setup::deploy_with_args,
+        singleton::{ISingletonDispatcher, ISingletonDispatcherTrait}, test::setup::deploy_with_args,
         common::{i257, i257_new},
-        extension::default_extension_po::{IDefaultExtensionDispatcher, IDefaultExtensionDispatcherTrait}
+        extension::default_extension_po::{
+            IDefaultExtensionDispatcher, IDefaultExtensionDispatcherTrait
+        }
     };
     use vesu_periphery::multiply4626::{
-        IMultiply4626Dispatcher, IMultiply4626DispatcherTrait, ModifyLeverParams, IncreaseLeverParams, ModifyLeverAction
+        IMultiply4626Dispatcher, IMultiply4626DispatcherTrait, ModifyLeverParams,
+        IncreaseLeverParams, ModifyLeverAction
     };
     use vesu_periphery::swap::{RouteNode, TokenAmount, Swap};
 
@@ -70,7 +72,8 @@ mod Test_974640_Multiply4626 {
         };
         let multiply = IMultiply4626Dispatcher {
             contract_address: deploy_with_args(
-                "Multiply4626", array![ekubo.contract_address.into(), singleton.contract_address.into()]
+                "Multiply4626",
+                array![ekubo.contract_address.into(), singleton.contract_address.into()]
             )
         };
 
@@ -107,7 +110,9 @@ mod Test_974640_Multiply4626 {
 
         let pool_id = 2345856225134458665876812536882617294246962319062565703131100435311373119841;
 
-        let extension = IDefaultExtensionDispatcher { contract_address: singleton.extension(pool_id) };
+        let extension = IDefaultExtensionDispatcher {
+            contract_address: singleton.extension(pool_id)
+        };
 
         let pool_key = PoolKey {
             token0: eth.contract_address,
@@ -183,10 +188,11 @@ mod Test_974640_Multiply4626 {
     #[available_gas(20000000)]
     #[fork("Mainnet")]
     fn test_modify_lever_4626_no_flash_loan() {
-        let TestConfig { singleton, extension,multiply, pool_id, strk, xstrk, user, .. } = setup();
+        let TestConfig { singleton, extension, multiply, pool_id, strk, xstrk, user, .. } = setup();
 
         start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
-        extension.set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
+        extension
+            .set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
         stop_prank(CheatTarget::One(extension.contract_address));
 
         let strk_balance_before = strk.balanceOf(user);
@@ -223,10 +229,11 @@ mod Test_974640_Multiply4626 {
     #[available_gas(20000000)]
     #[fork("Mainnet")]
     fn test_modify_lever_4626() {
-        let TestConfig { singleton, extension,multiply, pool_id, strk, xstrk, user, .. } = setup();
+        let TestConfig { singleton, extension, multiply, pool_id, strk, xstrk, user, .. } = setup();
 
         start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
-        extension.set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
+        extension
+            .set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
         stop_prank(CheatTarget::One(extension.contract_address));
 
         let strk_balance_before = strk.balanceOf(user);
@@ -263,10 +270,12 @@ mod Test_974640_Multiply4626 {
     #[available_gas(20000000)]
     #[fork("Mainnet")]
     fn test_modify_lever_4626_margin_swap() {
-        let TestConfig { singleton, extension,multiply, pool_id, usdc, strk, xstrk, user, .. } = setup();
+        let TestConfig { singleton, extension, multiply, pool_id, usdc, strk, xstrk, user, .. } =
+            setup();
 
         start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
-        extension.set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
+        extension
+            .set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
         stop_prank(CheatTarget::One(extension.contract_address));
 
         let strk_balance_before = strk.balanceOf(user);
@@ -286,16 +295,14 @@ mod Test_974640_Multiply4626 {
                         RouteNode {
                             pool_key: PoolKey {
                                 token0: contract_address_const::<
-                                0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
                                 >(),
                                 token1: contract_address_const::<
-                                0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
+                                    0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
                                 >(),
                                 fee: 0x20c49ba5e353f80000000000000000,
                                 tick_spacing: 1000,
-                                extension: contract_address_const::<
-                                    0x0
-                                >()
+                                extension: contract_address_const::<0x0>()
                             },
                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
                             skip_ahead: 0
@@ -303,16 +310,14 @@ mod Test_974640_Multiply4626 {
                         RouteNode {
                             pool_key: PoolKey {
                                 token0: contract_address_const::<
-                                0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
+                                    0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
                                 >(),
                                 token1: contract_address_const::<
-                                0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
                                 >(),
                                 fee: 0x68db8bac710cb4000000000000000,
                                 tick_spacing: 200,
-                                extension: contract_address_const::<
-                                    0x0
-                                >()
+                                extension: contract_address_const::<0x0>()
                             },
                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
                             skip_ahead: 0
