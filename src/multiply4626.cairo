@@ -31,6 +31,7 @@ pub struct IncreaseLeverParams {
     pub collateral_asset: ContractAddress,
     pub user: ContractAddress,
     pub add_margin: u128,
+    pub add_margin_is_wrapped: bool,
     pub lever_amount: u128,
     pub margin_swap: Array<Swap>,
     pub margin_swap_limit_amount: u128,
@@ -120,6 +121,7 @@ pub mod Multiply4626 {
             collateral_asset,
             user,
             add_margin,
+            add_margin_is_wrapped,
             margin_swap,
             margin_swap_limit_amount,
             lever_amount } =
@@ -164,7 +166,13 @@ pub mod Multiply4626 {
             } else {
                 // - transfer margin to multiplier
                 assert!(
-                    IERC20Dispatcher { contract_address: debt_asset }
+                    IERC20Dispatcher {
+                        contract_address: if (add_margin_is_wrapped) {
+                            collateral_asset
+                        } else {
+                            debt_asset
+                        }
+                    }
                         .transferFrom(user, get_contract_address(), add_margin.into()),
                     "transfer-failed"
                 );
@@ -178,8 +186,20 @@ pub mod Multiply4626 {
             IERC20Dispatcher { contract_address: debt_asset }
                 .approve(collateral_asset, (margin_amount + lever_amount).into());
 
-            let wrapped_amount = I4626Dispatcher { contract_address: collateral_asset }
-                .deposit((margin_amount + lever_amount).into(), get_contract_address());
+            // exclude margin_amount if margin token is already the wrapped token
+            let mut wrapped_amount = I4626Dispatcher { contract_address: collateral_asset }
+                .deposit(
+                    if add_margin_is_wrapped {
+                        lever_amount.into()
+                    } else {
+                        (margin_amount + lever_amount).into()
+                    },
+                    get_contract_address()
+                );
+
+            if add_margin_is_wrapped {
+                wrapped_amount += margin_amount.into();
+            }
 
             let singleton = self.singleton.read();
 

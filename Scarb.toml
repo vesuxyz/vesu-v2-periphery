@@ -24,6 +24,7 @@ block_id.number = "974640"
 
 [scripts]
 deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
+deployMultiply4626 = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply4626.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
 deployRebalance = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployRebalance.ts"
 test = "snforge test"

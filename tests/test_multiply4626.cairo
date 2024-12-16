@@ -31,7 +31,7 @@ mod Test_974640_Multiply4626 {
     };
     use vesu_periphery::multiply4626::{
         IMultiply4626Dispatcher, IMultiply4626DispatcherTrait, ModifyLeverParams,
-        IncreaseLeverParams, ModifyLeverAction
+        IncreaseLeverParams, ModifyLeverAction, I4626Dispatcher, I4626DispatcherTrait
     };
     use vesu_periphery::swap::{RouteNode, TokenAmount, Swap};
 
@@ -187,7 +187,7 @@ mod Test_974640_Multiply4626 {
     #[test]
     #[available_gas(20000000)]
     #[fork("Mainnet")]
-    fn test_modify_lever_4626_no_flash_loan() {
+    fn test_modify_lever_4626_xstrk_no_flash_loan() {
         let TestConfig { singleton, extension, multiply, pool_id, strk, xstrk, user, .. } = setup();
 
         start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
@@ -205,6 +205,7 @@ mod Test_974640_Multiply4626 {
             collateral_asset: xstrk.contract_address,
             user,
             add_margin: 100 * SCALE_128,
+            add_margin_is_wrapped: false,
             margin_swap: array![],
             margin_swap_limit_amount: 0,
             lever_amount: 0
@@ -225,10 +226,51 @@ mod Test_974640_Multiply4626 {
         );
     }
 
+    // #[test]
+    // #[available_gas(20000000)]
+    // #[fork("Mainnet")]
+    // fn test_modify_lever_4626_sstrk_no_flash_loan() {
+    //     let TestConfig { singleton, extension, multiply, pool_id, strk, sstrk, user, .. } = setup();
+
+    //     start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
+    //     extension
+    //         .set_debt_cap(pool_id, sstrk.contract_address, strk.contract_address, 10000000 * SCALE);
+    //     stop_prank(CheatTarget::One(extension.contract_address));
+
+    //     let strk_balance_before = strk.balanceOf(user);
+
+    //     strk.approve(multiply.contract_address, 1000000 * SCALE);
+    //     singleton.modify_delegation(pool_id, multiply.contract_address, true);
+
+    //     let increase_lever_params = IncreaseLeverParams {
+    //         pool_id,
+    //         collateral_asset: sstrk.contract_address,
+    //         user,
+    //         add_margin: 100 * SCALE_128,
+    //         margin_swap: array![],
+    //         margin_swap_limit_amount: 0,
+    //         lever_amount: 0
+    //     };
+
+    //     let modify_lever_params = ModifyLeverParams {
+    //         action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone())
+    //     };
+
+    //     multiply.modify_lever(modify_lever_params);
+
+    //     let (_, _, debt) = singleton
+    //         .position(pool_id, sstrk.contract_address, strk.contract_address, user);
+
+    //     assert!(debt == 0);
+    //     assert!(
+    //         strk.balanceOf(user) == strk_balance_before - increase_lever_params.add_margin.into()
+    //     );
+    // }
+
     #[test]
     #[available_gas(20000000)]
     #[fork("Mainnet")]
-    fn test_modify_lever_4626() {
+    fn test_modify_lever_4626_xstrk() {
         let TestConfig { singleton, extension, multiply, pool_id, strk, xstrk, user, .. } = setup();
 
         start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
@@ -246,6 +288,7 @@ mod Test_974640_Multiply4626 {
             collateral_asset: xstrk.contract_address,
             user,
             add_margin: 100 * SCALE_128,
+            add_margin_is_wrapped: false,
             margin_swap: array![],
             margin_swap_limit_amount: 0,
             lever_amount: 400 * SCALE_128
@@ -269,7 +312,7 @@ mod Test_974640_Multiply4626 {
     #[test]
     #[available_gas(20000000)]
     #[fork("Mainnet")]
-    fn test_modify_lever_4626_margin_swap() {
+    fn test_modify_lever_4626_xstrk_margin_swap() {
         let TestConfig { singleton, extension, multiply, pool_id, usdc, strk, xstrk, user, .. } =
             setup();
 
@@ -289,6 +332,7 @@ mod Test_974640_Multiply4626 {
             collateral_asset: xstrk.contract_address,
             user,
             add_margin: 0,
+            add_margin_is_wrapped: false,
             margin_swap: array![
                 Swap {
                     route: array![
@@ -346,5 +390,49 @@ mod Test_974640_Multiply4626 {
         assert!(
             strk.balanceOf(user) == strk_balance_before - increase_lever_params.add_margin.into()
         );
+    }
+
+    #[test]
+    #[available_gas(20000000)]
+    #[fork("Mainnet")]
+    fn test_modify_lever_4626_xstrk_wrapped_margin() {
+        let TestConfig { singleton, extension, multiply, pool_id, strk, xstrk, user, .. } = setup();
+
+        start_prank(CheatTarget::One(extension.contract_address), extension.pool_owner(pool_id));
+        extension
+            .set_debt_cap(pool_id, xstrk.contract_address, strk.contract_address, 10000000 * SCALE);
+        stop_prank(CheatTarget::One(extension.contract_address));
+
+        let strk_balance_before = strk.balanceOf(user);
+
+        strk.approve(xstrk.contract_address, 100 * SCALE);
+        // println!("{}", I4626Dispatcher { contract_address: xstrk.contract_address }.deposit(100 * SCALE, user));
+        I4626Dispatcher { contract_address: xstrk.contract_address }.deposit(100 * SCALE, user);
+        xstrk.approve(multiply.contract_address, 100 * SCALE);
+
+        singleton.modify_delegation(pool_id, multiply.contract_address, true);
+
+        let increase_lever_params = IncreaseLeverParams {
+            pool_id,
+            collateral_asset: xstrk.contract_address,
+            user,
+            add_margin: 99 * SCALE_128,
+            add_margin_is_wrapped: true,
+            margin_swap: array![],
+            margin_swap_limit_amount: 0,
+            lever_amount: 400 * SCALE_128
+        };
+
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone())
+        };
+
+        multiply.modify_lever(modify_lever_params);
+
+        let (_, _, debt) = singleton
+            .position(pool_id, xstrk.contract_address, strk.contract_address, user);
+
+        assert!(debt - 1 == increase_lever_params.lever_amount.into());
+        assert!(strk.balanceOf(user) == strk_balance_before - 100 * SCALE);
     }
 }
