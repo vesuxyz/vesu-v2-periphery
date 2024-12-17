@@ -120,6 +120,8 @@ pub mod Rebalance {
         collateral_asset: ContractAddress,
         #[key]
         debt_asset: ContractAddress,
+        #[key]
+        user: ContractAddress,
         target_ltv: u128,
         target_ltv_tolerance: u128,
         target_ltv_min_delta: u128
@@ -456,6 +458,7 @@ pub mod Rebalance {
                         pool_id,
                         collateral_asset,
                         debt_asset,
+                        user: get_caller_address(),
                         target_ltv,
                         target_ltv_tolerance,
                         target_ltv_min_delta
