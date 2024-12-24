@@ -128,7 +128,7 @@ pub mod Rebalance {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct Rebalance {
+    struct RebalancePosition {
         #[key]
         pool_id: felt252,
         #[key]
@@ -137,9 +137,10 @@ pub mod Rebalance {
         debt_asset: ContractAddress,
         #[key]
         user: ContractAddress,
-        margin: u256,
-        collateral_delta: u256,
-        debt_delta: u256
+        old_ltv: u256,
+        new_ltv: u256,
+        collateral_delta: i257,
+        debt_delta: i257
     }
 
     #[event]
@@ -148,7 +149,7 @@ pub mod Rebalance {
         SetOwner: SetOwner,
         SetRebalancer: SetRebalancer,
         SetTargetLTVConfig: SetTargetLTVConfig,
-        Rebalance: Rebalance,
+        RebalancePosition: RebalancePosition,
     }
 
     #[constructor]
@@ -197,14 +198,28 @@ pub mod Rebalance {
                 self.decrease_lever(rebalance_params)
             };
 
-            let (current_ltv, _, _, _) = self.delta(pool_id, collateral_asset, debt_asset, user);
+            let (new_ltv, _, _, _) = self.delta(pool_id, collateral_asset, debt_asset, user);
 
             assert!(
                 (target_ltv < target_ltv_tolerance
-                    || (target_ltv - target_ltv_tolerance).into() <= current_ltv)
-                    && current_ltv <= (target_ltv + target_ltv_tolerance).into(),
+                    || (target_ltv - target_ltv_tolerance).into() <= new_ltv)
+                    && new_ltv <= (target_ltv + target_ltv_tolerance).into(),
                 "target-ltv-tolerance"
             );
+
+            self
+                .emit(
+                    RebalancePosition {
+                        pool_id,
+                        collateral_asset,
+                        debt_asset,
+                        user,
+                        old_ltv: current_ltv,
+                        new_ltv,
+                        collateral_delta,
+                        debt_delta
+                    }
+                );
 
             RebalanceResponse { collateral_delta, debt_delta }
         }
