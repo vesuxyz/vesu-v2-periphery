@@ -670,8 +670,10 @@ mod Test_896150_Rebalance {
     #[test]
     #[available_gas(20000000)]
     #[fork("Mainnet")]
-    fn test_rebalance_decrease() {
-        let TestConfig { singleton, rebalance, pool_id, pool_key, eth, usdc, user, .. } = setup(0);
+    fn test_rebalance_decrease_with_fee() {
+        let TestConfig { singleton, rebalance, pool_id, pool_key, eth, usdc, user, .. } = setup(
+            SCALE_128 / 100
+        );
 
         let target_ltv = (SCALE / 4).try_into().unwrap();
         let target_ltv_tolerance = (SCALE / 100).try_into().unwrap();
@@ -725,6 +727,8 @@ mod Test_896150_Rebalance {
             .delta(pool_id, usdc.contract_address, eth.contract_address, user);
         assert!(delta_usd.abs != 0);
 
+        let rebalancer = contract_address_const::<'0x1'>();
+
         let rebalance_params = RebalanceParams {
             pool_id,
             collateral_asset: usdc.contract_address,
@@ -744,10 +748,13 @@ mod Test_896150_Rebalance {
                 }
             ],
             rebalance_swap_limit_amount: 0,
-            fee_recipient: Zero::zero()
+            fee_recipient: rebalancer
         };
 
+        prank(CheatTarget::One(rebalance.contract_address), rebalancer, CheatSpan::TargetCalls(1));
         rebalance.rebalance_position(rebalance_params.clone());
+        stop_prank(CheatTarget::One(rebalance.contract_address));
+
         let (collateral_asset_config, _) = singleton.asset_config(pool_id, usdc.contract_address);
         let (debt_asset_config, _) = singleton.asset_config(pool_id, eth.contract_address);
 
@@ -769,6 +776,7 @@ mod Test_896150_Rebalance {
         );
 
         assert!(usdc.balanceOf(user) == usdc_balance_before);
+        assert!(eth.balanceOf(rebalancer) > 0);
     }
 
     #[test]

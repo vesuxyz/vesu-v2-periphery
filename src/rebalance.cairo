@@ -207,6 +207,7 @@ pub mod Rebalance {
             RebalanceResponse { collateral_delta, debt_delta }
         }
 
+        /// Increase lever by swapping debt asset to collateral asset and depositing collateral
         fn increase_lever(
             ref self: ContractState, rebalance_params: RebalanceParams
         ) -> (i257, i257) {
@@ -246,7 +247,7 @@ pub mod Rebalance {
                 get_contract_address()
             );
 
-            // charge swap fee
+            // charge swap fee on the collateral amount to deposit
             let fee = self.fee_rate.read() * collateral_amount.amount.mag / SCALE_128;
             if fee > 0 {
                 assert!(fee_recipient != Zero::zero(), "zero-fee-recipient");
@@ -299,6 +300,7 @@ pub mod Rebalance {
             (collateral_delta, debt_delta)
         }
 
+        /// Decrease lever by swapping collateral asset to debt asset and repaying debt
         fn decrease_lever(
             ref self: ContractState, rebalance_params: RebalanceParams
         ) -> (i257, i257) {
@@ -306,6 +308,7 @@ pub mod Rebalance {
             collateral_asset,
             debt_asset,
             user,
+            fee_recipient,
             mut rebalance_swap,
             rebalance_swap_limit_amount,
             .. } =
@@ -321,7 +324,7 @@ pub mod Rebalance {
             //   - input token: debt asset and output token: collateral asset, since we specify a negative input amount
             //     of the debt asset (swap direction is reversed)
             assert!(rebalance_swap.len() != 0, "invalid-rebalance-swap");
-            let (collateral_amount, debt_amount) = swap(
+            let (collateral_amount, mut debt_amount) = swap(
                 core, rebalance_swap.clone(), rebalance_swap_limit_amount
             );
 
@@ -337,6 +340,18 @@ pub mod Rebalance {
                 i129_new(debt_amount.amount.mag, true),
                 get_contract_address()
             );
+
+            // charge swap fee on debt repayment amount
+            let fee = self.fee_rate.read() * debt_amount.amount.mag / SCALE_128;
+            if fee > 0 {
+                assert!(fee_recipient != Zero::zero(), "zero-fee-recipient");
+                debt_amount.amount.mag -= fee;
+                assert!(
+                    IERC20Dispatcher { contract_address: debt_asset }
+                        .transfer(fee_recipient, fee.into()),
+                    "transfer-failed"
+                );
+            }
 
             let singleton = self.singleton.read();
 
