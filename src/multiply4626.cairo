@@ -186,7 +186,15 @@ pub mod Multiply4626 {
             handle_delta(core, debt_asset, i129_new(lever_amount, true), get_contract_address());
 
             IERC20Dispatcher { contract_address: debt_asset }
-                .approve(collateral_asset, (margin_amount + lever_amount).into());
+                .approve(
+                    collateral_asset,
+                    (if (add_margin_is_wrapped) {
+                        lever_amount
+                    } else {
+                        lever_amount + margin_amount
+                    })
+                        .into()
+                );
 
             // exclude margin_amount if margin token is already the wrapped token
             let mut wrapped_amount = I4626Dispatcher { contract_address: collateral_asset }
