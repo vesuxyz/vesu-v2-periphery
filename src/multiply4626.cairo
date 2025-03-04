@@ -135,7 +135,9 @@ pub mod Multiply4626 {
                     core, margin_swap.clone(), margin_swap_limit_amount
                 );
                 assert!(
-                    add_margin == 0 && debt_amount_.token == debt_asset,
+                    add_margin == 0
+                        && debt_amount_.token == debt_asset
+                        && add_margin_is_wrapped == false,
                     "invalid-margin-swap-assets"
                 );
 
