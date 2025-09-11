@@ -16,6 +16,7 @@ build-external-contracts = ["vesu::test::mock_oracle::MockPragmaOracle"]
 [dependencies]
 starknet = "2.11.4"
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
+alexandria_math = { git = "https://github.com/keep-starknet-strange/alexandria.git", rev = "c804e98" }
 ekubo = { git = "https://github.com/EkuboProtocol/abis", commit = "946e1f3f97d48918d7cbd484de56bb2de8dd755e" }
 vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "37d0e422addc84f445f66ed5ef8bc5f31901e0b7" }
 
@@ -30,7 +31,5 @@ block_id.number = "BLOCK_NUMBER"
 
 [scripts]
 deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
-deployMultiply4626 = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply4626.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
-deployRebalance = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployRebalance.ts"
 test = "snforge test --max-n-steps 100000000"
