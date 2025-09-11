@@ -36,6 +36,7 @@ mod Test_896150_Liquidate {
     struct TestConfig {
         ekubo: ICoreDispatcher,
         liquidate: ILiquidateDispatcher,
+        pool: IPoolDispatcher,
         pool_key: PoolKey,
         pool_key_2: PoolKey,
         pool_key_3: PoolKey,
@@ -47,6 +48,12 @@ mod Test_896150_Liquidate {
     }
 
     fn setup() -> TestConfig {
+        let pool = IPoolDispatcher {
+            contract_address: contract_address_const::<
+                0x2f8dd91900ac049a8a00bb91413f1e6745f08794c50158dd0cc6b9fc97f9f15,
+            >(),
+        };
+
         let ekubo = ICoreDispatcher {
             contract_address: contract_address_const::<
                 0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b,
@@ -110,6 +117,13 @@ mod Test_896150_Liquidate {
         };
 
         let user = get_contract_address();
+        let lp = contract_address_const::<'lp'>();
+
+        let loaded = load(eth.contract_address, selector!("permitted_minter"), 1);
+        let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
+        start_cheat_caller_address(eth.contract_address, minter);
+        IStarkgateERC20Dispatcher { contract_address: eth.contract_address }.permissioned_mint(lp, 100 * SCALE);
+        stop_cheat_caller_address(eth.contract_address);
 
         let loaded = load(usdc.contract_address, selector!("permitted_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
@@ -123,8 +137,25 @@ mod Test_896150_Liquidate {
         IStarkgateERC20Dispatcher { contract_address: usdt.contract_address }.permissioned_mint(user, 100000_000_000);
         stop_cheat_caller_address(usdt.contract_address);
 
+        // seed liquidity
+        start_cheat_caller_address(eth.contract_address, lp);
+        eth.approve(pool.contract_address, 100 * SCALE);
+        stop_cheat_caller_address(eth.contract_address);
+        start_cheat_caller_address(pool.contract_address, lp);
+        pool
+            .modify_position(
+                ModifyPositionParams {
+                    collateral_asset: eth.contract_address,
+                    debt_asset: usdc.contract_address,
+                    user: user,
+                    collateral: Amount { denomination: AmountDenomination::Assets, value: (10 * SCALE).into() },
+                    debt: Default::default(),
+                },
+            );
+        stop_cheat_caller_address(pool.contract_address);
+
         let test_config = TestConfig {
-            ekubo, liquidate, pool_key, pool_key_2, pool_key_3, pool_key_4, eth, usdc, usdt, user,
+            ekubo, liquidate, pool_key, pool_key_2, pool_key_3, pool_key_4, eth, usdc, usdt, user, pool,
         };
 
         test_config
@@ -134,20 +165,14 @@ mod Test_896150_Liquidate {
     #[available_gas(20000000)]
     #[fork("Mainnet")]
     fn test_liquidate_position_full_liquidation_multi_swap() {
-        let TestConfig { liquidate, pool_key, eth, usdc, user, .. } = setup();
-
-        let pool = IPoolDispatcher {
-            contract_address: contract_address_const::<
-                0x2f8dd91900ac049a8a00bb91413f1e6745f08794c50158dd0cc6b9fc97f9f15,
-            >(),
-        };
+        let TestConfig { liquidate, pool_key, eth, usdc, user, pool, .. } = setup();
 
         let params = ModifyPositionParams {
             collateral_asset: usdc.contract_address,
             debt_asset: eth.contract_address,
             user: user,
             collateral: Amount { denomination: AmountDenomination::Assets, value: 14000_000_000.into() },
-            debt: Amount { denomination: AmountDenomination::Assets, value: (3 * SCALE).into() },
+            debt: Amount { denomination: AmountDenomination::Assets, value: (2 * SCALE).into() },
         };
 
         start_cheat_caller_address(usdc.contract_address, user);
@@ -215,96 +240,86 @@ mod Test_896150_Liquidate {
         let (position, _, _) = pool.position(usdc.contract_address, eth.contract_address, user);
         assert!(position.nominal_debt == 0);
     }
-    // #[test]
-// #[available_gas(20000000)]
-// #[fork("Mainnet")]
-// fn test_liquidate_position_full_liquidation_multi_swap_no_bad_debt() {
-//     let TestConfig { singleton, liquidate, pool_id, pool_key, eth, usdc, user, .. } = setup();
 
-    //     let params = ModifyPositionParams {
-//         pool_id,
-//         collateral_asset: usdc.contract_address,
-//         debt_asset: eth.contract_address,
-//         user: user,
-//         collateral: Amount {
-//             amount_type: AmountType::Delta, denomination: AmountDenomination::Assets, value:
-//             14000_000_000.into(),
-//         },
-//         debt: Amount {
-//             amount_type: AmountType::Delta, denomination: AmountDenomination::Assets, value: (3 * SCALE).into(),
-//         },
-//         data: ArrayTrait::new().span(),
-//     };
+    #[test]
+    #[available_gas(20000000)]
+    #[fork("Mainnet")]
+    fn test_liquidate_position_full_liquidation_multi_swap_no_bad_debt() {
+        let TestConfig { pool, liquidate, pool_key, eth, usdc, user, .. } = setup();
 
-    //     start_cheat_caller_address(usdc.contract_address, user);
-//     usdc.approve(singleton.contract_address, params.collateral.value.abs);
-//     stop_cheat_caller_address(usdc.contract_address);
+        let params = ModifyPositionParams {
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user: user,
+            collateral: Amount { denomination: AmountDenomination::Assets, value: 14000_000_000.into() },
+            debt: Amount { denomination: AmountDenomination::Assets, value: (2 * SCALE).into() },
+        };
 
-    //     start_cheat_caller_address(singleton.contract_address, user);
-//     singleton.modify_position(params);
-//     stop_cheat_caller_address(singleton.contract_address);
+        start_cheat_caller_address(usdc.contract_address, user);
+        usdc.approve(pool.contract_address, params.collateral.value.abs());
+        stop_cheat_caller_address(usdc.contract_address);
 
-    //     let (_, collateral, debt) = singleton.position(pool_id, usdc.contract_address, eth.contract_address, user);
-//     assert!(collateral + 1 == params.collateral.value.abs);
-//     assert!(debt - 1 == params.debt.value.abs);
+        start_cheat_caller_address(pool.contract_address, user);
+        pool.modify_position(params);
+        stop_cheat_caller_address(pool.contract_address);
 
-    //     let mock_pragma_oracle = IMockPragmaOracleDispatcher { contract_address: deploy_contract("MockPragmaOracle")
-//     };
-//     mock_pragma_oracle.set_num_sources_aggregated('USDC/USD', 10);
-//     mock_pragma_oracle.set_price('USDC/USD', SCALE_128 * 8 / 10);
-//     let extension = singleton.extension(pool_id);
-//     let price = IExtensionDispatcher { contract_address: extension }.price(pool_id, eth.contract_address);
-//     mock_pragma_oracle.set_num_sources_aggregated('ETH/USD', 10);
-//     mock_pragma_oracle.set_price('ETH/USD', price.value.try_into().unwrap());
+        let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
+        assert!(collateral + 1 == params.collateral.value.abs());
+        assert!(debt - 1 == params.debt.value.abs());
 
-    //     store(extension, selector!("oracle_address"), array![mock_pragma_oracle.contract_address.into()].span());
+        let mock_pragma_oracle = IMockPragmaOracleDispatcher { contract_address: deploy_contract("MockPragmaOracle") };
+        mock_pragma_oracle.set_num_sources_aggregated('USDC/USD', 10);
+        mock_pragma_oracle.set_price('USDC/USD', SCALE_128 * 8 / 10);
+        let price = pool.price(eth.contract_address);
+        mock_pragma_oracle.set_num_sources_aggregated('ETH/USD', 10);
+        mock_pragma_oracle.set_price('ETH/USD', price.value.try_into().unwrap());
 
-    //     // reduce oracle price
+        store(pool.oracle(), selector!("pragma_oracle"), array![mock_pragma_oracle.contract_address.into()].span());
 
-    //     mock_pragma_oracle.set_price('USDC/USD', SCALE_128 * 8 / 10);
+        // reduce oracle price
+        mock_pragma_oracle.set_price('USDC/USD', SCALE_128 * 8 / 11);
 
-    //     let liquidator = contract_address_const::<'liquidator'>();
+        let liquidator = contract_address_const::<'liquidator'>();
 
-    //     assert!(usdc.balanceOf(liquidator) == 0);
+        assert!(usdc.balanceOf(liquidator) == 0);
 
-    //     prank(CheatTarget::One(liquidate.contract_address), liquidator, CheatSpan::TargetCalls(1));
-//     let response: LiquidateResponse = liquidate
-//         .liquidate(
-//             LiquidateParams {
-//                 pool_id,
-//                 collateral_asset: usdc.contract_address,
-//                 debt_asset: eth.contract_address,
-//                 user,
-//                 recipient: liquidator,
-//                 min_collateral_to_receive: collateral / 2,
-//                 debt_to_repay: 0,
-//                 liquidate_swap: array![
-//                     Swap {
-//                         route: array![
-//                             RouteNode { pool_key: pool_key, sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT, skip_ahead: 0
-//                             },
-//                         ],
-//                         token_amount: TokenAmount { token: eth.contract_address, amount: Zero::zero() },
-//                     },
-//                 ],
-//                 liquidate_swap_limit_amount: 14000_000_000,
-//                 liquidate_swap_weights: array![SCALE_128],
-//                 withdraw_swap: array![],
-//                 withdraw_swap_limit_amount: 0,
-//                 withdraw_swap_weights: array![],
-//             },
-//         );
+        cheat_caller_address(liquidate.contract_address, liquidator, CheatSpan::TargetCalls(1));
 
-    //     assert!(response.liquidated_collateral < collateral);
-//     assert!(response.repaid_debt == debt);
-//     assert!(response.residual_collateral != 0 && response.residual_collateral == usdc.balanceOf(liquidator));
-//     assert!(eth.balanceOf(liquidate.contract_address) == 0);
-//     assert!(usdc.balanceOf(liquidate.contract_address) == 0);
+        let response: LiquidateResponse = liquidate
+            .liquidate(
+                LiquidateParams {
+                    pool: pool.contract_address,
+                    collateral_asset: usdc.contract_address,
+                    debt_asset: eth.contract_address,
+                    user,
+                    recipient: liquidator,
+                    min_collateral_to_receive: collateral / 2,
+                    debt_to_repay: 0,
+                    liquidate_swap: array![
+                        Swap {
+                            route: array![
+                                RouteNode { pool_key: pool_key, sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT, skip_ahead: 0 },
+                            ],
+                            token_amount: TokenAmount { token: eth.contract_address, amount: Zero::zero() },
+                        },
+                    ],
+                    liquidate_swap_limit_amount: 14000_000_000,
+                    liquidate_swap_weights: array![SCALE_128],
+                    withdraw_swap: array![],
+                    withdraw_swap_limit_amount: 0,
+                    withdraw_swap_weights: array![],
+                },
+            );
 
-    //     let (position, _, _) = singleton.position(pool_id, usdc.contract_address, eth.contract_address, user);
-//     assert!(position.nominal_debt == 0);
-// }
+        assert!(response.liquidated_collateral < collateral);
+        assert!(response.repaid_debt == debt);
+        assert!(response.residual_collateral != 0 && response.residual_collateral == usdc.balanceOf(liquidator));
+        assert!(eth.balanceOf(liquidate.contract_address) == 0);
+        assert!(usdc.balanceOf(liquidate.contract_address) == 0);
 
+        let (position, _, _) = pool.position(usdc.contract_address, eth.contract_address, user);
+        assert!(position.nominal_debt == 0);
+    }
     // #[test]
 // #[available_gas(20000000)]
 // #[fork("Mainnet")]
