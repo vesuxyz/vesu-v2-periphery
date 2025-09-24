@@ -57,6 +57,7 @@ mod Test_896150_Liquidate {
                 0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b,
             >(),
         };
+
         let liquidate = ILiquidateDispatcher {
             contract_address: deploy_with_args("Liquidate", array![ekubo.contract_address.into()]),
         };
