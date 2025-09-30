@@ -14,14 +14,13 @@ mod Test_896150_Multiply {
     use ekubo::types::i129::i129;
     use ekubo::types::keys::PoolKey;
     use snforge_std::{
-        CheatSpan, cheat_caller_address, load, start_cheat_caller_address, stop_cheat_caller_address, store,
+        load, start_cheat_caller_address, stop_cheat_caller_address,
     };
     #[feature("deprecated-starknet-consts")]
     use starknet::{ContractAddress, contract_address_const, get_contract_address};
     use vesu::data_model::{Amount, AmountDenomination, ModifyPositionParams};
     use vesu::pool::{IPoolDispatcher, IPoolDispatcherTrait};
-    use vesu::test::mock_oracle::{IMockPragmaOracleDispatcher, IMockPragmaOracleDispatcherTrait};
-    use vesu::test::setup_v2::{deploy_contract, deploy_with_args};
+    use vesu::test::setup_v2::deploy_with_args;
     use vesu::units::{SCALE, SCALE_128};
     use vesu_v2_periphery::multiply::{
         DecreaseLeverParams, IMultiplyDispatcher, IMultiplyDispatcherTrait, IncreaseLeverParams, ModifyLeverAction,
@@ -838,496 +837,432 @@ mod Test_896150_Multiply {
 
         assert!(usdc.balanceOf(user) >= user_balance_before + decrease_lever_params.sub_margin.into());
     }
-    // #[test]
-// #[fork("Mainnet")]
-// fn test_modify_lever_multi_swap() {
-//     let TestConfig { pool, multiply, pool_key_3, pool_key_4, eth, usdc, user, .. } = setup();
 
-    //     let usdc_balance_before = usdc.balanceOf(user);
+    // https://quoter-mainnet-api.ekubo.org/-110000000/0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8/0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7?max_splits=0&max_hops=0
 
-    //     usdc.approve(multiply.contract_address, 10000_000_000.into());
-//     pool.modify_delegation(multiply.contract_address, true);
+    #[test]
+    #[fork("Mainnet")]
+    fn test_modify_lever_multi_swap() {
+        let TestConfig { pool, multiply, eth, usdc, user, .. } = setup();
 
-    //     let increase_lever_params = IncreaseLeverParams {
-//         pool: pool.contract_address,
-//         collateral_asset: usdc.contract_address,
-//         debt_asset: eth.contract_address,
-//         user,
-//         add_margin: 10000_000_000_u128,
-//         margin_swap: array![],
-//         margin_swap_limit_amount: 0,
-//         lever_swap: array![
-//             Swap {
-//                 route: array![
-//                     RouteNode { pool_key: pool_key_3, sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT, skip_ahead: 0 },
-//                     RouteNode { pool_key: pool_key_4, sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT, skip_ahead: 0 },
-//                 ],
-//                 token_amount: TokenAmount {
-//                     token: usdc.contract_address, amount: i129 { mag: 110_000_000.try_into().unwrap(), sign: true
-//                     },
-//                 },
-//             },
-//         ],
-//         lever_swap_limit_amount: 44000000000000000 // 0.044 ETH
-//     };
+        let usdc_balance_before = usdc.balanceOf(user);
 
-    //     let modify_lever_params = ModifyLeverParams {
-//         action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone()),
-//     };
+        usdc.approve(multiply.contract_address, 10000_000_000.into());
+        pool.modify_delegation(multiply.contract_address, true);
 
-    //     let modify_lever_response = multiply.modify_lever(modify_lever_params);
-//     assert!(modify_lever_response.collateral_delta == I257Trait::new(10110_000_000, false));
-//     assert!(modify_lever_response.debt_delta > I257Trait::new(0, false));
-//     assert!(modify_lever_response.margin_delta == I257Trait::new(10000_000_000, false));
+        let increase_lever_params = IncreaseLeverParams {
+            pool: pool.contract_address,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            add_margin: 10000_000_000_u128,
+            margin_swap: array![],
+            margin_swap_limit_amount: 0,
+            lever_swap: array![
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
+                                >(),
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x3fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f,
+                                >(),
+                                fee: 0x68db8bac710cb4000000000000000,
+                                tick_spacing: 200,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x3fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
+                                >(),
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount {
+                        token: usdc.contract_address, amount: i129 { mag: 110_000_000.try_into().unwrap(), sign: true },
+                    },
+                },
+            ],
+            lever_swap_limit_amount: 44000000000000000 // 0.044 ETH
+        };
 
-    //     let (_, collateral, _) = pool.position(usdc.contract_address, eth.contract_address, user);
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone()),
+        };
 
-    //     let lever_swap: @Swap = (increase_lever_params.lever_swap[0]);
-//     let lever_swap_amount: u256 = (*lever_swap.token_amount.amount.mag).into();
-//     assert!(collateral + 1 == increase_lever_params.add_margin.into() + lever_swap_amount);
+        let modify_lever_response = multiply.modify_lever(modify_lever_params);
+        assert!(modify_lever_response.collateral_delta == I257Trait::new(10110_000_000, false));
+        assert!(modify_lever_response.debt_delta > I257Trait::new(0, false));
+        assert!(modify_lever_response.margin_delta == I257Trait::new(10000_000_000, false));
 
-    //     assert!(usdc.balanceOf(user) == usdc_balance_before - increase_lever_params.add_margin.into());
-// }
+        let (_, collateral, _) = pool.position(usdc.contract_address, eth.contract_address, user);
 
-    //     #[test]
-//     #[available_gas(20000000)]
-//     #[fork("Mainnet")]
-//     fn test_modify_lever_split_multi_swap() {
-//         let TestConfig { singleton, multiply, pool_id, eth, usdc, user, .. } = setup();
+        let lever_swap: @Swap = (increase_lever_params.lever_swap[0]);
+        let lever_swap_amount: u256 = (*lever_swap.token_amount.amount.mag).into();
+        assert!(collateral == increase_lever_params.add_margin.into() + lever_swap_amount);
 
-    //         let usdc_balance_before = usdc.balanceOf(user);
+        assert!(usdc.balanceOf(user) == usdc_balance_before - increase_lever_params.add_margin.into());
+    }
 
-    //         usdc.approve(multiply.contract_address, 10000_000_000.into());
-//         singleton.modify_delegation(pool_id, multiply.contract_address, true);
+    #[test]
+    #[fork("Mainnet")]
+    fn test_modify_lever_split_multi_swap() {
+        let TestConfig { pool, multiply, eth, usdc, user, .. } = setup();
 
-    //         let increase_lever_params = IncreaseLeverParams {
-//             pool_id,
-//             collateral_asset: usdc.contract_address,
-//             debt_asset: eth.contract_address,
-//             user,
-//             add_margin: 10000_000_000_u128,
-//             margin_swap: array![],
-//             margin_swap_limit_amount: 0,
-//             lever_swap: array![
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: eth.contract_address,
-//                                 token1: usdc.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 2
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((55_000_000).try_into().unwrap(), true)
-//                     },
-//                 },
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: usdc.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: eth.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((27_500_000).try_into().unwrap(), true)
-//                     },
-//                 },
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: usdc.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: eth.contract_address,
-//                                 fee: 0x28f5c28f5c28f5c28f5c28f5c28f5c2,
-//                                 tick_spacing: 354892,
-//                                 extension: contract_address_const::<
-//                                     0x43e4f09c32d13d43a880e85f69f7de93ceda62d6cf2581a582c6db635548fdc
-//                                 >()
-//                             },
-//                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((13_750_000).try_into().unwrap(), true)
-//                     },
-//                 },
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: usdc.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: eth.contract_address,
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((13_750_000).try_into().unwrap(), true)
-//                     },
-//                 },
-//             ],
-//             lever_swap_limit_amount: 44000000000000000, // 0.044 ETH
-//         };
+        let usdc_balance_before = usdc.balanceOf(user);
 
-    //         let modify_lever_params = ModifyLeverParams {
-//             action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone())
-//         };
+        usdc.approve(multiply.contract_address, 10000_000_000.into());
+        pool.modify_delegation(multiply.contract_address, true);
 
-    //         let modify_lever_response = multiply.modify_lever(modify_lever_params);
-//         assert!(modify_lever_response.collateral_delta == i257_new(10110_000_000, false));
-//         assert!(modify_lever_response.debt_delta > i257_new(0, false));
-//         assert!(modify_lever_response.margin_delta == i257_new(10000_000_000, false));
+        let increase_lever_params = IncreaseLeverParams {
+            pool: pool.contract_address,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            add_margin: 10000_000_000_u128,
+            margin_swap: array![],
+            margin_swap_limit_amount: 0,
+            lever_swap: array![
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: eth.contract_address,
+                                token1: usdc.contract_address,
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount {
+                        token: usdc.contract_address, amount: i129 { mag: 103125000.try_into().unwrap(), sign: true },
+                    },
+                },
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d,
+                                >(),
+                                token1: usdc.contract_address,
+                                fee: 0xc49ba5e353f7d00000000000000000,
+                                tick_spacing: 354892,
+                                extension: contract_address_const::<
+                                    0x43e4f09c32d13d43a880e85f69f7de93ceda62d6cf2581a582c6db635548fdc,
+                                >(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d,
+                                >(),
+                                token1: eth.contract_address,
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 354892,
+                                extension: contract_address_const::<
+                                    0x43e4f09c32d13d43a880e85f69f7de93ceda62d6cf2581a582c6db635548fdc,
+                                >(),
+                            },
+                            sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount {
+                        token: usdc.contract_address, amount: i129 { mag: 6875000.try_into().unwrap(), sign: true },
+                    },
+                },
+            ],
+            lever_swap_limit_amount: 44000000000000000 // 0.044 ETH
+        };
 
-    //         let (_, collateral, _) = singleton
-//             .position(pool_id, usdc.contract_address, eth.contract_address, user);
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone()),
+        };
 
-    //         let lever_swap_1: @Swap = (increase_lever_params.lever_swap[0]);
-//         let lever_swap_amount_1: u256 = (*lever_swap_1.token_amount.amount.mag).into();
-//         let lever_swap_2: @Swap = (increase_lever_params.lever_swap[1]);
-//         let lever_swap_amount_2: u256 = (*lever_swap_2.token_amount.amount.mag).into();
-//         let lever_swap_3: @Swap = (increase_lever_params.lever_swap[2]);
-//         let lever_swap_amount_3: u256 = (*lever_swap_3.token_amount.amount.mag).into();
-//         let lever_swap_4: @Swap = (increase_lever_params.lever_swap[3]);
-//         let lever_swap_amount_4: u256 = (*lever_swap_4.token_amount.amount.mag).into();
-//         assert!(
-//             lever_swap_amount_1
-//                 + lever_swap_amount_2
-//                 + lever_swap_amount_3
-//                 + lever_swap_amount_4 == 110_000_000
-//         );
-//         assert!(
-//             collateral
-//                 + 1 == increase_lever_params.add_margin.into()
-//                 + lever_swap_amount_1
-//                 + lever_swap_amount_2
-//                 + lever_swap_amount_3
-//                 + lever_swap_amount_4
-//         );
+        let modify_lever_response = multiply.modify_lever(modify_lever_params);
+        assert!(modify_lever_response.collateral_delta == I257Trait::new(10110_000_000, false));
+        assert!(modify_lever_response.debt_delta > I257Trait::new(0, false));
+        assert!(modify_lever_response.margin_delta == I257Trait::new(10000_000_000, false));
 
-    //         assert!(
-//             usdc.balanceOf(user) == usdc_balance_before - increase_lever_params.add_margin.into()
-//         );
-//     }
+        let (_, collateral, _) = pool.position(usdc.contract_address, eth.contract_address, user);
 
-    //     #[test]
-//     #[available_gas(20000000)]
-//     #[should_panic(expected: "limit-amount-exceeded")]
-//     #[fork("Mainnet")]
-//     fn test_modify_lever_multi_swap_limit_amount_exceeded() {
-//         let TestConfig { singleton,
-//         multiply,
-//         pool_id,
-//         pool_key_3,
-//         pool_key_4,
-//         eth,
-//         usdc,
-//         user,
-//         .. } =
-//             setup();
+        let lever_swap_1: @Swap = (increase_lever_params.lever_swap[0]);
+        let lever_swap_amount_1: u256 = (*lever_swap_1.token_amount.amount.mag).into();
+        let lever_swap_2: @Swap = (increase_lever_params.lever_swap[1]);
+        let lever_swap_amount_2: u256 = (*lever_swap_2.token_amount.amount.mag).into();
+        assert!(lever_swap_amount_1 + lever_swap_amount_2 == 110_000_000);
+        assert!(collateral == increase_lever_params.add_margin.into() + lever_swap_amount_1 + lever_swap_amount_2);
 
-    //         usdc.approve(multiply.contract_address, 10000_000_000.into());
-//         singleton.modify_delegation(pool_id, multiply.contract_address, true);
+        assert!(usdc.balanceOf(user) == usdc_balance_before - increase_lever_params.add_margin.into());
+    }
 
-    //         let increase_lever_params = IncreaseLeverParams {
-//             pool_id,
-//             collateral_asset: usdc.contract_address,
-//             debt_asset: eth.contract_address,
-//             user,
-//             add_margin: 10000_000_000_u128,
-//             margin_swap: array![],
-//             margin_swap_limit_amount: 0,
-//             lever_swap: array![
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: pool_key_3,
-//                             sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: pool_key_4,
-//                             sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
-//                             skip_ahead: 0
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((100_000_000).try_into().unwrap(), true)
-//                     },
-//                 }
-//             ],
-//             lever_swap_limit_amount: 10000000000000000, // 0.01 ETH
-//         };
+    #[test]
+    #[available_gas(20000000)]
+    #[should_panic(expected: "limit-amount-exceeded")]
+    #[fork("Mainnet")]
+    fn test_modify_lever_multi_swap_limit_amount_exceeded() {
+        let TestConfig { pool, multiply, eth, usdc, user, .. } = setup();
 
-    //         let modify_lever_params = ModifyLeverParams {
-//             action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone())
-//         };
+        usdc.approve(multiply.contract_address, 10000_000_000.into());
+        pool.modify_delegation(multiply.contract_address, true);
 
-    //         multiply.modify_lever(modify_lever_params);
-//     }
+        let increase_lever_params = IncreaseLeverParams {
+            pool: pool.contract_address,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            add_margin: 10000_000_000_u128,
+            margin_swap: array![],
+            margin_swap_limit_amount: 0,
+            lever_swap: array![
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
+                                >(),
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x3fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f,
+                                >(),
+                                fee: 0x68db8bac710cb4000000000000000,
+                                tick_spacing: 200,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x3fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
+                                >(),
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: MAX_SQRT_RATIO_LIMIT,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount {
+                        token: usdc.contract_address, amount: i129 { mag: 110_000_000.try_into().unwrap(), sign: true },
+                    },
+                },
+            ],
+            lever_swap_limit_amount: 14000000000000000 // 0.044 ETH
+        };
 
-    //     #[test]
-//     #[available_gas(20000000)]
-//     #[fork("Mainnet")]
-//     fn test_modify_lever_close_multi_swap() {
-//         let TestConfig { singleton, multiply, pool_id, pool_key, eth, usdc, user, .. } = setup();
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone()),
+        };
 
-    //         usdc.approve(multiply.contract_address, 10000_000_000.into());
-//         singleton.modify_delegation(pool_id, multiply.contract_address, true);
+        multiply.modify_lever(modify_lever_params);
+    }
 
-    //         let increase_lever_params = IncreaseLeverParams {
-//             pool_id,
-//             collateral_asset: usdc.contract_address,
-//             debt_asset: eth.contract_address,
-//             user,
-//             add_margin: 10000_000_000_u128,
-//             margin_swap: array![],
-//             margin_swap_limit_amount: 0,
-//             lever_swap: array![
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key, sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT, skip_ahead: 0
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: usdc.contract_address,
-//                         amount: i129_new((110_000_000).try_into().unwrap(), true)
-//                     },
-//                 }
-//             ],
-//             lever_swap_limit_amount: 35000000000000000, // 0.035 ETH
-//         };
+    #[test]
+    #[available_gas(20000000)]
+    #[fork("Mainnet")]
+    fn test_modify_lever_close_multi_swap() {
+        let TestConfig { pool, multiply, pool_key, eth, usdc, user, .. } = setup();
 
-    //         let modify_lever_params = ModifyLeverParams {
-//             action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone())
-//         };
+        usdc.approve(multiply.contract_address, 10000_000_000.into());
+        pool.modify_delegation(multiply.contract_address, true);
 
-    //         multiply.modify_lever(modify_lever_params);
+        let increase_lever_params = IncreaseLeverParams {
+            pool: pool.contract_address,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            add_margin: 10000_000_000_u128,
+            margin_swap: array![],
+            margin_swap_limit_amount: 0,
+            lever_swap: array![
+                Swap {
+                    route: array![RouteNode { pool_key, sqrt_ratio_limit: MIN_SQRT_RATIO_LIMIT, skip_ahead: 0 }],
+                    token_amount: TokenAmount {
+                        token: usdc.contract_address, amount: i129 { mag: 110_000_000.try_into().unwrap(), sign: true },
+                    },
+                },
+            ],
+            lever_swap_limit_amount: 35000000000000000 // 0.035 ETH
+        };
 
-    //         let user_balance_before = usdc.balanceOf(user);
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::IncreaseLever(increase_lever_params.clone()),
+        };
 
-    //         let decrease_lever_params = DecreaseLeverParams {
-//             pool_id,
-//             collateral_asset: usdc.contract_address,
-//             debt_asset: eth.contract_address,
-//             user,
-//             sub_margin: 0,
-//             recipient: user,
-//             lever_swap: array![
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
-//                                 >(),
-//                                 fee: 0x20c49ba5e353f80000000000000000,
-//                                 tick_spacing: 1000,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: 0x446634e28eeaa431ae12ec1659450,
-//                             skip_ahead: 0
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: eth.contract_address, amount: Zero::zero(),
-//                     },
-//                 },
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
-//                                 >(),
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: 0x307e81d097153647a82829cfa5d7901,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x3b405a98c9e795d427fe82cdeeeed803f221b52471e3a757574a2b4180793ee
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 fee: 0xc49ba5e353f7d00000000000000000,
-//                                 tick_spacing: 354892,
-//                                 extension: contract_address_const::<
-//                                     0x43e4f09c32d13d43a880e85f69f7de93ceda62d6cf2581a582c6db635548fdc
-//                                 >()
-//                             },
-//                             sqrt_ratio_limit: 0x131b02323b1a000e3,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x3b405a98c9e795d427fe82cdeeeed803f221b52471e3a757574a2b4180793ee
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
-//                                 >(),
-//                                 fee: 0xc49ba5e353f7d00000000000000000,
-//                                 tick_spacing: 5982,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: 0x9b876e7f2023a3f55e14d63d,
-//                             skip_ahead: 0
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: eth.contract_address, amount: Zero::zero(),
-//                     },
-//                 },
-//                 Swap {
-//                     route: array![
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7
-//                                 >(),
-//                                 fee: 0x68db8bac710cb4000000000000000,
-//                                 tick_spacing: 200,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: 0x307ddc74b2248a73b1f19d7430afe18,
-//                             skip_ahead: 0
-//                         },
-//                         RouteNode {
-//                             pool_key: PoolKey {
-//                                 token0: contract_address_const::<
-//                                     0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
-//                                 >(),
-//                                 token1: contract_address_const::<
-//                                     0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
-//                                 >(),
-//                                 fee: 0x20c49ba5e353f80000000000000000,
-//                                 tick_spacing: 1000,
-//                                 extension: contract_address_const::<0x0>()
-//                             },
-//                             sqrt_ratio_limit: 0xd48a866dfb39cd5e9d7687efb52,
-//                             skip_ahead: 0
-//                         }
-//                     ],
-//                     token_amount: TokenAmount {
-//                         token: eth.contract_address, amount: Zero::zero(),
-//                     },
-//                 },
-//             ],
-//             lever_swap_limit_amount: 110_000_000
-//                 + (110_000_000 * 1 / 100), // 1% slippage of the original levered amount
-//             lever_swap_weights: array![SCALE_128 / 3, SCALE_128 / 3, SCALE_128 / 3 + 1],
-//             withdraw_swap: array![],
-//             withdraw_swap_limit_amount: 0,
-//             withdraw_swap_weights: array![],
-//             close_position: true
-//         };
+        multiply.modify_lever(modify_lever_params);
 
-    //         let modify_lever_params = ModifyLeverParams {
-//             action: ModifyLeverAction::DecreaseLever(decrease_lever_params.clone())
-//         };
+        let user_balance_before = usdc.balanceOf(user);
 
-    //         let (_, collateral, debt) = singleton
-//             .position(pool_id, usdc.contract_address, eth.contract_address, user);
+        let decrease_lever_params = DecreaseLeverParams {
+            pool: pool.contract_address,
+            collateral_asset: usdc.contract_address,
+            debt_asset: eth.contract_address,
+            user,
+            sub_margin: 0,
+            recipient: user,
+            lever_swap: array![
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
+                                >(),
+                                fee: 0x20c49ba5e353f80000000000000000,
+                                tick_spacing: 1000,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: 0x4c835c3c828894f3ddac2085f1211,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount { token: eth.contract_address, amount: Zero::zero() },
+                },
+                Swap {
+                    route: array![
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
+                                >(),
+                                fee: 0xc49ba5e353f7d00000000000000000,
+                                tick_spacing: 5982,
+                                extension: contract_address_const::<0x0>(),
+                            },
+                            sqrt_ratio_limit: 0xb0dd63cf9d7e17d384023dfb4aeb13,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x75afe6402ad5a5c20dd25e10ec3b3986acaa647b77e4ae24b0cbc9a54a27a87,
+                                >(),
+                                fee: 0xc49ba5e353f7d00000000000000000,
+                                tick_spacing: 354892,
+                                extension: contract_address_const::<
+                                    0x43e4f09c32d13d43a880e85f69f7de93ceda62d6cf2581a582c6db635548fdc,
+                                >(),
+                            },
+                            sqrt_ratio_limit: 0xfffffc080ed7b4556f3528fe26840249f4b191ef6dff7928,
+                            skip_ahead: 0,
+                        },
+                        RouteNode {
+                            pool_key: PoolKey {
+                                token0: contract_address_const::<
+                                    0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
+                                >(),
+                                token1: contract_address_const::<
+                                    0x75afe6402ad5a5c20dd25e10ec3b3986acaa647b77e4ae24b0cbc9a54a27a87,
+                                >(),
+                                fee: 0x0,
+                                tick_spacing: 354892,
+                                extension: contract_address_const::<
+                                    0x5e470ff654d834983a46b8f29dfa99963d5044b993cb7b9c92243a69dab38f,
+                                >(),
+                            },
+                            sqrt_ratio_limit: 0x1000003f7f1380b75,
+                            skip_ahead: 0,
+                        },
+                    ],
+                    token_amount: TokenAmount { token: eth.contract_address, amount: Zero::zero() },
+                },
+            ],
+            lever_swap_limit_amount: 110_000_000
+                + (110_000_000 * 1 / 100), // 1% slippage of the original levered amount
+            lever_swap_weights: array![SCALE_128 / 2, SCALE_128 / 2],
+            withdraw_swap: array![],
+            withdraw_swap_limit_amount: 0,
+            withdraw_swap_weights: array![],
+            close_position: true,
+        };
 
-    //         let modify_lever_response = multiply.modify_lever(modify_lever_params);
+        let modify_lever_params = ModifyLeverParams {
+            action: ModifyLeverAction::DecreaseLever(decrease_lever_params.clone()),
+        };
 
-    //         assert!(modify_lever_response.collateral_delta == i257_new(collateral, true));
-//         assert!(modify_lever_response.debt_delta == i257_new(debt, true));
-//         assert!(modify_lever_response.margin_delta <= i257_new(9999_000_000, true));
+        let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
+        println!("collateral: {}", collateral);
+        println!("debt:       {}", debt);
 
-    //         let (position, collateral, debt) = singleton
-//             .position(pool_id, usdc.contract_address, eth.contract_address, user);
-//         assert!(position.collateral_shares == 0);
-//         assert!(position.nominal_debt == 0);
-//         assert!(collateral == 0);
-//         assert!(debt == 0);
+        let modify_lever_response = multiply.modify_lever(modify_lever_params);
 
-    //         assert!(
-//             usdc.balanceOf(user) >= user_balance_before + decrease_lever_params.sub_margin.into()
-//         );
-//     }
+        assert!(modify_lever_response.collateral_delta == I257Trait::new(collateral, true));
+        assert!(modify_lever_response.debt_delta == I257Trait::new(debt, true));
+        assert!(modify_lever_response.margin_delta <= I257Trait::new(9999_000_000, true));
+
+        let (position, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
+        assert!(position.collateral_shares == 0);
+        assert!(position.nominal_debt == 0);
+        assert!(collateral == 0);
+        assert!(debt == 0);
+
+        assert!(usdc.balanceOf(user) >= user_balance_before + decrease_lever_params.sub_margin.into());
+    }
 }
 
