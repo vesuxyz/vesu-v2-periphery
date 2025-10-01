@@ -23,22 +23,20 @@ interface UnsignedAmount {
 export interface AssetParams {
   asset: string;
   floor: bigint;
-  initial_rate_accumulator: bigint;
   initial_full_utilization_rate: bigint;
   max_utilization: bigint;
   is_legacy: boolean;
   fee_rate: bigint;
 }
 
-export interface VTokenParams {
-  v_token_name: string;
-  v_token_symbol: string;
-}
-
 export interface PragmaOracleParams {
+  asset: string;
   pragma_key: BigNumberish;
   timeout: bigint;
   number_of_sources: bigint;
+  start_time_offset: bigint;
+  time_window: bigint;
+  aggregation_mode: CairoCustomEnum;
 }
 
 export interface InterestRateConfig {
@@ -52,17 +50,15 @@ export interface InterestRateConfig {
   target_rate_percent: bigint;
 }
 
-export interface LiquidationParams extends AssetIndexes {
-  liquidation_factor: bigint;
-}
-
 export interface AssetIndexes {
   collateral_asset_index: number;
   debt_asset_index: number;
 }
 
-export interface LTVParams extends AssetIndexes {
+export interface PairParams extends AssetIndexes {
   max_ltv: bigint;
+  liquidation_factor: bigint;
+  debt_cap: bigint;
 }
 
 export interface AssetConfig {
@@ -79,40 +75,37 @@ export interface AssetConfig {
   fee_rate: bigint;
 }
 
-export interface ShutdownParams {
-  recovery_period: bigint;
-  subscription_period: bigint;
-  ltv_params: LTVParams[];
-}
-
 export interface FeeParams {
   fee_recipient: string;
 }
 
+export interface VTokenParams {
+  v_token_name: string;
+  v_token_symbol: string;
+}
+
 export interface CreatePoolParams {
+  name: string;
+  owner: string;
+  curator: string;
+  // oracle: string;
+  fee_recipient: string;
   asset_params: AssetParams[];
   v_token_params: VTokenParams[];
-  ltv_params: LTVParams[];
   interest_rate_configs: InterestRateConfig[];
   pragma_oracle_params: PragmaOracleParams[];
-  liquidation_params: LiquidationParams[];
-  shutdown_params: ShutdownParams;
-  fee_params: FeeParams;
-  owner: string;
+  pair_params: PairParams[];
 }
 
 export interface ModifyPositionParams {
-  pool_id: bigint;
   collateral_asset: string;
   debt_asset: string;
   user: string;
   collateral: Amount;
   debt: Amount;
-  data: any;
 }
 
 export interface TransferPositionParams {
-  pool_id: bigint;
   from_collateral_asset: string;
   to_collateral_asset: string;
   from_debt_asset: string;
@@ -126,12 +119,11 @@ export interface TransferPositionParams {
 }
 
 export interface LiquidatePositionParams {
-  pool_id: bigint;
   collateral_asset: string;
   debt_asset: string;
   user: string;
-  receive_as_shares: boolean;
-  data: any;
+  min_collateral_to_receive: bigint;
+  debt_to_repay: bigint;
 }
 
 export function Amount(args?: {

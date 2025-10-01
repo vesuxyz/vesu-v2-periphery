@@ -1,11 +1,8 @@
-import fs from "fs";
-import CONFIG from "vesu_changelog/configurations/config_genesis_sn_main.json" assert { type: "json" };
-import { Config, EnvAssetParams, PERCENT, SCALE, toScale, toUtilizationScale } from ".";
+import { CairoCustomEnum } from "starknet";
+import { Config, EnvAssetParams, toScale, toUtilizationScale } from ".";
 
-let DEPLOYMENT: any = {};
-try {
-  DEPLOYMENT = JSON.parse(fs.readFileSync(`deployment-....json`, "utf-8"));
-} catch (error) {}
+import CONFIG from "vesu_changelog/configurations/config_prime_sn_main.json" with { type: "json" };
+import DEPLOYMENT from "../deployment.json" with { type: "json" };
 
 const env = CONFIG.asset_parameters.map(
   (asset: any) =>
@@ -14,12 +11,10 @@ const env = CONFIG.asset_parameters.map(
       asset.token.symbol,
       BigInt(asset.token.decimals),
       0n,
-      asset.oracle.pragma_key,
+      asset.pragma.pragma_key,
       0n,
       asset.token.is_legacy,
-      BigInt(asset.fee_rate),
-      asset.v_token.v_token_name,
-      asset.v_token.v_token_symbol,
+      toScale(asset.fee_rate),
       asset.token.address,
     ),
 );
@@ -27,22 +22,29 @@ const env = CONFIG.asset_parameters.map(
 export const config: Config = {
   name: "mainnet",
   protocol: {
-    singleton: "0x2545b2e5d519fc230e9cd781046d3a64e092114f07e44771e0d719d148725ef", // DEPLOYMENT.singleton || "0x0",
-    extension: DEPLOYMENT.extension || "0x0",
-    oracle: DEPLOYMENT.oracle || CONFIG.asset_parameters[0].oracle.address,
-    ekubo: "0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b"
+    poolFactory: DEPLOYMENT.poolFactory || "0x0",
+    pool: DEPLOYMENT.pool || "0x0",
+    oracle: DEPLOYMENT.oracle || "0x0",
+    pragma: {
+      oracle: DEPLOYMENT.pragma.oracle || CONFIG.asset_parameters[0].pragma.oracle || "0x0",
+      summary_stats: DEPLOYMENT.pragma.summary_stats || CONFIG.asset_parameters[0].pragma.summary_stats || "0x0",
+    },
+    ekubo: {
+      core: DEPLOYMENT.ekubo.core || "0x0",
+    },
   },
   env,
   pools: {
     "genesis-pool": {
-      id: 1n,
-      description: "",
-      type: "",
       params: {
+        name: "genesis-pool",
+        owner: CONFIG.pool_parameters.owner,
+        curator: CONFIG.pool_parameters.owner,
+        fee_recipient: CONFIG.pool_parameters.fee_recipient,
+        // oracle: CONFIG.pool_parameters.oracle,
         asset_params: CONFIG.asset_parameters.map((asset: any) => ({
           asset: asset.token.address,
           floor: toScale(asset.floor),
-          initial_rate_accumulator: SCALE,
           initial_full_utilization_rate: toScale(asset.initial_full_utilization_rate),
           max_utilization: toScale(asset.max_utilization),
           is_legacy: asset.token.is_legacy,
@@ -51,16 +53,9 @@ export const config: Config = {
         v_token_params: CONFIG.asset_parameters.map((asset: any) => ({
           v_token_name: asset.v_token.v_token_name,
           v_token_symbol: asset.v_token.v_token_symbol,
+          debt_asset: CONFIG.asset_parameters.find((_asset: any) => _asset.asset_name !== asset.asset_name)!.token
+            .address,
         })),
-        ltv_params: CONFIG.pair_parameters.map((pair: any) => {
-          const collateral_asset_index = CONFIG.asset_parameters.findIndex(
-            (asset: any) => asset.asset_name === pair.collateral_asset_name,
-          );
-          const debt_asset_index = CONFIG.asset_parameters.findIndex(
-            (asset: any) => asset.asset_name === pair.debt_asset_name,
-          );
-          return { collateral_asset_index, debt_asset_index, max_ltv: toScale(pair.max_ltv) };
-        }),
         interest_rate_configs: CONFIG.asset_parameters.map((asset: any) => ({
           min_target_utilization: toUtilizationScale(asset.min_target_utilization),
           max_target_utilization: toUtilizationScale(asset.max_target_utilization),
@@ -72,34 +67,32 @@ export const config: Config = {
           target_rate_percent: toScale(asset.target_rate_percent),
         })),
         pragma_oracle_params: CONFIG.asset_parameters.map((asset: any) => ({
-          pragma_key: asset.oracle.pragma_key,
-          timeout: BigInt(asset.oracle.timeout),
-          number_of_sources: BigInt(asset.oracle.number_of_sources),
+          asset: asset.token.address,
+          pragma_key: asset.pragma.pragma_key,
+          timeout: BigInt(asset.pragma.timeout),
+          number_of_sources: BigInt(asset.pragma.number_of_sources),
+          start_time_offset: BigInt(asset.pragma.start_time_offset),
+          time_window: BigInt(asset.pragma.time_window),
+          aggregation_mode:
+            asset.pragma.aggregation_mode == "median" || asset.pragma.aggregation_mode == "Median"
+              ? new CairoCustomEnum({ Median: {}, Mean: undefined, Error: undefined })
+              : new CairoCustomEnum({ Median: undefined, Mean: {}, Error: undefined }),
         })),
-        liquidation_params: CONFIG.pair_parameters.map((pair: any) => {
+        pair_params: CONFIG.pair_parameters.map((pair: any) => {
           const collateral_asset_index = CONFIG.asset_parameters.findIndex(
             (asset: any) => asset.asset_name === pair.collateral_asset_name,
           );
           const debt_asset_index = CONFIG.asset_parameters.findIndex(
             (asset: any) => asset.asset_name === pair.debt_asset_name,
           );
-          return { collateral_asset_index, debt_asset_index, liquidation_factor: toScale(pair.liquidation_discount) };
+          return {
+            collateral_asset_index,
+            debt_asset_index,
+            max_ltv: toScale(pair.max_ltv),
+            liquidation_factor: toScale(pair.liquidation_discount),
+            debt_cap: toScale(pair.debt_cap),
+          };
         }),
-        shutdown_params: {
-          recovery_period: BigInt(CONFIG.pool_parameters.recovery_period),
-          subscription_period: BigInt(CONFIG.pool_parameters.subscription_period),
-          ltv_params: CONFIG.pair_parameters.map((pair: any) => {
-            const collateral_asset_index = CONFIG.asset_parameters.findIndex(
-              (asset: any) => asset.asset_name === pair.collateral_asset_name,
-            );
-            const debt_asset_index = CONFIG.asset_parameters.findIndex(
-              (asset: any) => asset.asset_name === pair.debt_asset_name,
-            );
-            return { collateral_asset_index, debt_asset_index, max_ltv: 90n * PERCENT };
-          }),
-        },
-        fee_params: { fee_recipient: CONFIG.pool_parameters.fee_recipient },
-        owner: CONFIG.pool_parameters.owner,
       },
     },
   },
