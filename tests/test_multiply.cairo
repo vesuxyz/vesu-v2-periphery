@@ -13,9 +13,7 @@ mod Test_896150_Multiply {
     use ekubo::interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
     use ekubo::types::i129::i129;
     use ekubo::types::keys::PoolKey;
-    use snforge_std::{
-        load, start_cheat_caller_address, stop_cheat_caller_address,
-    };
+    use snforge_std::{load, start_cheat_caller_address, stop_cheat_caller_address};
     #[feature("deprecated-starknet-consts")]
     use starknet::{ContractAddress, contract_address_const, get_contract_address};
     use vesu::data_model::{Amount, AmountDenomination, ModifyPositionParams};

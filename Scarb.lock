@@ -145,7 +145,7 @@ dependencies = [
 [[package]]
 name = "vesu"
 version = "0.1.0"
-source = "git+https://github.com/vesuxyz/vesu-v2#37d0e422addc84f445f66ed5ef8bc5f31901e0b7"
+source = "git+https://github.com/vesuxyz/vesu-v2#d4b21c8c8275f3c3e25cbc91195efdbf21abbd19"
 dependencies = [
  "alexandria_math",
  "openzeppelin",
