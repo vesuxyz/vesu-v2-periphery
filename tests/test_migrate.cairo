@@ -18,7 +18,7 @@ mod Test_896150_Migrate {
     use vesu::units::SCALE;
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
-        ISingletonV2DispatcherTrait, MigratePositionParams, ModifyPositionParamsSingletonV2,
+        ISingletonV2DispatcherTrait, MigratePositionFromV1Params, ModifyPositionParamsSingletonV2,
     };
     use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
@@ -123,8 +123,8 @@ mod Test_896150_Migrate {
         pool.modify_delegation(migrate.contract_address, true);
 
         migrate
-            .migrate_position(
-                MigratePositionParams {
+            .migrate_position_from_v1(
+                MigratePositionFromV1Params {
                     from_pool_id: pool_id,
                     to_pool: pool.contract_address,
                     collateral_asset: usdc.contract_address,
