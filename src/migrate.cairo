@@ -2,6 +2,12 @@ use alexandria_math::i257::i257;
 use starknet::ContractAddress;
 use vesu::data_model::{AmountDenomination, AssetPrice, Position, UpdatePositionResponse};
 
+#[starknet::interface]
+pub trait ITokenMigration<T> {
+    fn swap_to_new(ref self: T, amount: u256);
+    fn swap_to_legacy(ref self: T, amount: u256);
+}
+
 #[derive(PartialEq, Copy, Drop, Serde, Default)]
 pub enum AmountType {
     #[default]
@@ -97,14 +103,18 @@ pub mod Migrate {
     use vesu::pool::{IFlashLoanReceiver, IPoolDispatcher, IPoolDispatcherTrait};
     use vesu::units::SCALE;
     use vesu_v2_periphery::migrate::{
-        AmountSingletonV2, AmountType, IMigrate, ISingletonV2Dispatcher, ISingletonV2DispatcherTrait, MigrateAction,
-        MigratePositionFromV1Params, MigratePositionParams, ModifyPositionParamsSingletonV2, UpdatePositionResponse,
+        AmountSingletonV2, AmountType, IMigrate, ISingletonV2Dispatcher, ISingletonV2DispatcherTrait,
+        ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait, MigrateAction, MigratePositionFromV1Params,
+        MigratePositionParams, ModifyPositionParamsSingletonV2, UpdatePositionResponse,
     };
 
     #[storage]
     struct Storage {
         singleton_v2: ISingletonV2Dispatcher,
         pool: ContractAddress,
+        usdc_e: ContractAddress,
+        usdc: ContractAddress,
+        usdc_migrator: ITokenMigrationDispatcher,
     }
 
     #[event]
@@ -112,8 +122,17 @@ pub mod Migrate {
     enum Event {}
 
     #[constructor]
-    fn constructor(ref self: ContractState, singleton_v2: ISingletonV2Dispatcher) {
+    fn constructor(
+        ref self: ContractState,
+        singleton_v2: ISingletonV2Dispatcher,
+        usdc_e: ContractAddress,
+        usdc: ContractAddress,
+        usdc_migrator: ITokenMigrationDispatcher,
+    ) {
         self.singleton_v2.write(singleton_v2);
+        self.usdc_e.write(usdc_e);
+        self.usdc.write(usdc);
+        self.usdc_migrator.write(usdc_migrator);
     }
 
     #[generate_trait]
@@ -121,9 +140,6 @@ pub mod Migrate {
         fn call_flash_loan(
             ref self: ContractState, pool: IPoolDispatcher, asset: ContractAddress, amount: u256, data: Span<felt252>,
         ) {
-            // check for usdc.e to usdc conversion
-            // if usdc.e is debt asset, then take out debt in usdc and convert it back to usdc.e to repay the flash loan
-
             self.pool.write(pool.contract_address);
             pool.flash_loan(get_contract_address(), asset, amount, false, data);
             self.pool.write(0.try_into().unwrap());
@@ -238,14 +254,30 @@ pub mod Migrate {
             ref self: ContractState,
             to_pool: IPoolDispatcher,
             to_user: ContractAddress,
-            collateral_asset: ContractAddress,
-            debt_asset: ContractAddress,
+            mut collateral_asset: ContractAddress,
+            mut debt_asset: ContractAddress,
             collateral_delta: u256,
             debt_delta: u256,
             from_ltv: u256,
             max_ltv_delta: u256,
         ) {
-            // TODO: if usdc.e is collateral asset, then convert to usdc
+            let usdc_migrator = self.usdc_migrator.read();
+            let usdc_e = self.usdc_e.read();
+            let usdc = self.usdc.read();
+
+            // if usdc.e is collateral asset, then convert to usdc
+            collateral_asset =
+                if collateral_asset == usdc_e {
+                    assert!(
+                        IERC20Dispatcher { contract_address: collateral_asset }
+                            .approve(usdc_migrator.contract_address, collateral_delta),
+                        "approve-failed",
+                    );
+                    usdc_migrator.swap_to_new(collateral_delta);
+                    usdc
+                } else {
+                    collateral_asset
+                };
 
             assert!(
                 IERC20Dispatcher { contract_address: collateral_asset }
@@ -253,7 +285,13 @@ pub mod Migrate {
                 "approve-failed",
             );
 
-            // TODO: if usdc.e is debt asset, then borrow usdc
+            // if usdc.e is debt asset, then borrow usdc
+            let debt_asset_is_usdc_e = debt_asset == usdc_e;
+            debt_asset = if debt_asset_is_usdc_e {
+                usdc
+            } else {
+                debt_asset
+            };
 
             to_pool
                 .modify_position(
@@ -274,7 +312,15 @@ pub mod Migrate {
                 .check_collateralization(collateral_asset, debt_asset, to_user);
             let to_ltv = debt_value * SCALE / collateral_value;
             assert!(from_ltv - max_ltv_delta <= to_ltv && to_ltv <= from_ltv + max_ltv_delta, "ltv-out-of-range");
-            // TODO: if usdc.e is debt asset, then convert borrowed usdc back to usdc.e
+
+            // if usdc.e is debt asset, then convert borrowed usdc back to usdc.e
+            if debt_asset_is_usdc_e {
+                assert!(
+                    IERC20Dispatcher { contract_address: usdc }.approve(usdc_migrator.contract_address, debt_delta),
+                    "approve-failed",
+                );
+                usdc_migrator.swap_to_legacy(debt_delta);
+            }
         }
     }
 

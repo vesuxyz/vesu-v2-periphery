@@ -18,7 +18,8 @@ mod Test_896150_Migrate {
     use vesu::units::SCALE;
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
-        ISingletonV2DispatcherTrait, MigratePositionFromV1Params, ModifyPositionParamsSingletonV2,
+        ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait,
+        MigratePositionFromV1Params, ModifyPositionParamsSingletonV2,
     };
     use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
@@ -33,6 +34,19 @@ mod Test_896150_Migrate {
     }
 
     fn setup() -> TestConfig {
+        let eth = IERC20Dispatcher {
+            contract_address: contract_address_const::<
+                0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
+            >(),
+        };
+        let usdc = IERC20Dispatcher {
+            contract_address: contract_address_const::<
+                0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
+            >(),
+        };
+        let usdc_e = IERC20Dispatcher { contract_address: contract_address_const::<0x0>() };
+        let usdc_migrator = ITokenMigrationDispatcher { contract_address: contract_address_const::<0x0>() };
+
         let singleton_v2 = ISingletonV2Dispatcher {
             contract_address: contract_address_const::<
                 0x000d8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160,
@@ -48,18 +62,15 @@ mod Test_896150_Migrate {
         };
 
         let migrate = IMigrateDispatcher {
-            contract_address: deploy_with_args("Migrate", array![singleton_v2.contract_address.into()]),
-        };
-
-        let eth = IERC20Dispatcher {
-            contract_address: contract_address_const::<
-                0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7,
-            >(),
-        };
-        let usdc = IERC20Dispatcher {
-            contract_address: contract_address_const::<
-                0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8,
-            >(),
+            contract_address: deploy_with_args(
+                "Migrate",
+                array![
+                    singleton_v2.contract_address.into(),
+                    usdc_e.contract_address.into(),
+                    usdc.contract_address.into(),
+                    usdc_migrator.contract_address.into(),
+                ],
+            ),
         };
 
         let user = get_contract_address();
