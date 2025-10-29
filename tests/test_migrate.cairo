@@ -12,14 +12,14 @@ mod Test_3251219_Migrate {
     use snforge_std::{load, start_cheat_caller_address, stop_cheat_caller_address};
     #[feature("deprecated-starknet-consts")]
     use starknet::{ContractAddress, contract_address_const, get_contract_address};
-    use vesu::data_model::AmountDenomination;
+    use vesu::data_model::{Amount, AmountDenomination, ModifyPositionParams};
     use vesu::pool::{IPoolDispatcher, IPoolDispatcherTrait};
     use vesu::test::setup_v2::deploy_with_args;
     use vesu::units::SCALE;
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
         ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait,
-        MigratePositionFromV1Params, ModifyPositionParamsSingletonV2,
+        MigratePositionFromV1Params, ModifyPositionParamsSingletonV2, MigratePositionParams,
     };
     use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
@@ -29,7 +29,8 @@ mod Test_3251219_Migrate {
         usdc: IERC20Dispatcher,
         usdc_e: IERC20Dispatcher,
         user: ContractAddress,
-        pool: IPoolDispatcher,
+        pool_1: IPoolDispatcher,
+        pool_2: IPoolDispatcher,
         singleton_v2: ISingletonV2Dispatcher,
         pool_id: felt252,
     }
@@ -60,9 +61,14 @@ mod Test_3251219_Migrate {
 
         let pool_id = 0x4dc4f0ca6ea4961e4c8373265bfd5317678f4fe374d76f3fd7135f57763bf28;
 
-        let pool = IPoolDispatcher {
+        let pool_1 = IPoolDispatcher {
             contract_address: contract_address_const::<
                 0x451fe483d5921a2919ddd81d0de6696669bccdacd859f72a4fba7656b97c3b5,
+            >(),
+        };
+        let pool_2 = IPoolDispatcher {
+            contract_address: contract_address_const::<
+                0x03976cac265a12609934089004df458ea29c776d77da423c96dc761d09d24124,
             >(),
         };
 
@@ -93,20 +99,20 @@ mod Test_3251219_Migrate {
         IStarkgateERC20Dispatcher { contract_address: usdc.contract_address }.permissioned_mint(user, 100000_000_000);
         stop_cheat_caller_address(usdc.contract_address);
 
-        // seed liquidity
-        start_cheat_caller_address(eth.contract_address, lp);
-        eth.approve(pool.contract_address, 100 * SCALE);
-        stop_cheat_caller_address(eth.contract_address);
+        // // seed liquidity
+        // start_cheat_caller_address(eth.contract_address, lp);
+        // eth.approve(pool_1.contract_address, 100 * SCALE);
+        // stop_cheat_caller_address(eth.contract_address);
 
-        let test_config = TestConfig { migrate, eth, usdc, usdc_e, user, pool, singleton_v2, pool_id };
+        let test_config = TestConfig { migrate, eth, usdc, usdc_e, user, pool_1, pool_2, singleton_v2, pool_id };
 
         test_config
     }
 
     #[test]
     #[fork("Mainnet")]
-    fn test_migrate_position() {
-        let TestConfig { pool, migrate, eth, usdc, user, singleton_v2, pool_id, .. } = setup();
+    fn test_migrate_position_from_v1() {
+        let TestConfig { pool_1, migrate, eth, usdc, user, singleton_v2, pool_id, .. } = setup();
 
         usdc.approve(singleton_v2.contract_address, 10000_000_000.into());
 
@@ -136,13 +142,13 @@ mod Test_3251219_Migrate {
         assert!(debt == SCALE.into() + 1);
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
-        pool.modify_delegation(migrate.contract_address, true);
+        pool_1.modify_delegation(migrate.contract_address, true);
 
         migrate
             .migrate_position_from_v1(
                 MigratePositionFromV1Params {
                     from_pool_id: pool_id,
-                    to_pool: pool.contract_address,
+                    to_pool: pool_1.contract_address,
                     collateral_asset: usdc.contract_address,
                     debt_asset: eth.contract_address,
                     from_user: user,
@@ -155,9 +161,62 @@ mod Test_3251219_Migrate {
         assert!(collateral == 0);
         assert!(debt == 0);
 
-        let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
+        let (_, collateral, debt) = pool_1.position(usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
         assert!(debt == SCALE.into() + 2);
     }
+
+    // #[test]
+    // #[fork("Mainnet")]
+    // fn test_migrate_position_from_v2() {
+    //     let TestConfig { pool_1, pool_2, migrate, eth, usdc, user, .. } = setup();
+
+    //     usdc.approve(pool_1.contract_address, 10000_000_000.into());
+
+    //     pool_1
+    //         .modify_position(
+    //             ModifyPositionParams {
+    //                 collateral_asset: usdc.contract_address,
+    //                 debt_asset: eth.contract_address,
+    //                 user,
+    //                 collateral: Amount {
+    //                     denomination: AmountDenomination::Assets,
+    //                     value: I257Trait::new(10000_000_000, false),
+    //                 },
+    //                 debt: Amount {
+    //                     denomination: AmountDenomination::Assets,
+    //                     value: I257Trait::new(SCALE.into(), false),
+    //                 },
+    //             },
+    //         );
+
+    //     let (_, collateral, debt) = pool_1.position(usdc.contract_address, eth.contract_address, user);
+    //     assert!(collateral == 10000_000_000 - 1);
+    //     assert!(debt == SCALE.into() + 1);
+
+    //     pool_1.modify_delegation(migrate.contract_address, true);
+    //     pool_2.modify_delegation(migrate.contract_address, true);
+
+    //     migrate
+    //         .migrate_position(
+    //             MigratePositionParams {
+    //                 from_pool: pool_1.contract_address,
+    //                 to_pool: pool_2.contract_address,
+    //                 collateral_asset: usdc.contract_address,
+    //                 debt_asset: eth.contract_address,
+    //                 from_user: user,
+    //                 to_user: user,
+    //                 max_ltv_delta: SCALE / 1000,
+    //             },
+    //         );
+
+    //     let (_, collateral, debt) = pool_1.position(usdc.contract_address, eth.contract_address, user);
+    //     assert!(collateral == 0);
+    //     assert!(debt == 0);
+
+    //     let (_, collateral, debt) = pool_2.position(usdc.contract_address, eth.contract_address, user);
+    //     assert!(collateral == 10000_000_000 - 2);
+    //     assert!(debt == SCALE.into() + 2);
+    // }
 }
 
