@@ -210,6 +210,7 @@ pub mod Migrate {
             let from_pool = IPoolDispatcher { contract_address: from_pool };
             let to_pool = IPoolDispatcher { contract_address: to_pool };
 
+            let (position, _, _) = from_pool.position(collateral_asset, debt_asset, from_user);
             let (_, collateral_value, debt_value) = from_pool
                 .check_collateralization(collateral_asset, debt_asset, from_user);
             let from_ltv = debt_value * SCALE / collateral_value;
@@ -229,9 +230,13 @@ pub mod Migrate {
                             debt_asset,
                             user: from_user,
                             collateral: Amount {
-                                denomination: AmountDenomination::Native, value: I257Trait::new(0, true),
+                                denomination: AmountDenomination::Native,
+                                value: I257Trait::new(position.collateral_shares, true),
                             },
-                            debt: Amount { denomination: AmountDenomination::Native, value: I257Trait::new(0, true) },
+                            debt: Amount {
+                                denomination: AmountDenomination::Native,
+                                value: I257Trait::new(position.nominal_debt, true),
+                            },
                         },
                     );
 
