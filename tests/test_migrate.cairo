@@ -6,7 +6,7 @@ trait IStarkgateERC20<TContractState> {
 }
 
 #[cfg(test)]
-mod Test_896150_Migrate {
+mod Test_3251219_Migrate {
     use alexandria_math::i257::I257Trait;
     use ekubo::interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
     use snforge_std::{load, start_cheat_caller_address, stop_cheat_caller_address};
@@ -27,6 +27,7 @@ mod Test_896150_Migrate {
         migrate: IMigrateDispatcher,
         eth: IERC20Dispatcher,
         usdc: IERC20Dispatcher,
+        usdc_e: IERC20Dispatcher,
         user: ContractAddress,
         pool: IPoolDispatcher,
         singleton_v2: ISingletonV2Dispatcher,
@@ -45,7 +46,11 @@ mod Test_896150_Migrate {
             >(),
         };
         let usdc_e = IERC20Dispatcher { contract_address: contract_address_const::<0x0>() };
-        let usdc_migrator = ITokenMigrationDispatcher { contract_address: contract_address_const::<0x0>() };
+        let usdc_migrator = ITokenMigrationDispatcher {
+            contract_address: contract_address_const::<
+                0x06D4A1EC34c85b6129Ed433C46accfbE8B4B1225A3401C2767ea1060Ded208e7,
+            >(),
+        };
 
         let singleton_v2 = ISingletonV2Dispatcher {
             contract_address: contract_address_const::<
@@ -93,7 +98,7 @@ mod Test_896150_Migrate {
         eth.approve(pool.contract_address, 100 * SCALE);
         stop_cheat_caller_address(eth.contract_address);
 
-        let test_config = TestConfig { migrate, eth, usdc, user, pool, singleton_v2, pool_id };
+        let test_config = TestConfig { migrate, eth, usdc, usdc_e, user, pool, singleton_v2, pool_id };
 
         test_config
     }
@@ -101,7 +106,7 @@ mod Test_896150_Migrate {
     #[test]
     #[fork("Mainnet")]
     fn test_migrate_position() {
-        let TestConfig { pool, migrate, eth, usdc, user, singleton_v2, pool_id } = setup();
+        let TestConfig { pool, migrate, eth, usdc, user, singleton_v2, pool_id, .. } = setup();
 
         usdc.approve(singleton_v2.contract_address, 10000_000_000.into());
 

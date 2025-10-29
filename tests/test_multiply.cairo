@@ -6,7 +6,7 @@ trait IStarkgateERC20<TContractState> {
 }
 
 #[cfg(test)]
-mod Test_896150_Multiply {
+mod Test_2386336_Multiply {
     use alexandria_math::i257::I257Trait;
     use core::num::traits::Zero;
     use ekubo::interfaces::core::ICoreDispatcher;
@@ -1245,8 +1245,6 @@ mod Test_896150_Multiply {
         };
 
         let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
-        println!("collateral: {}", collateral);
-        println!("debt:       {}", debt);
 
         let modify_lever_response = multiply.modify_lever(modify_lever_params);
 
