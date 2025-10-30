@@ -5,6 +5,14 @@ trait IStarkgateERC20<TContractState> {
     fn permissioned_mint(ref self: TContractState, account: ContractAddress, amount: u256);
 }
 
+// test v1 to v2
+// test v1 to v2 collateral asset is usdc.e
+// test v1 to v2 debt asset is usdc.e
+
+// test v2 to v2
+// test v2 to v2 collateral asset is usdc.e
+// test v2 to v2 debt asset is usdc.e
+
 #[cfg(test)]
 mod Test_3251219_Migrate {
     use alexandria_math::i257::I257Trait;
@@ -19,7 +27,7 @@ mod Test_3251219_Migrate {
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
         ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait,
-        MigratePositionFromV1Params, ModifyPositionParamsSingletonV2, MigratePositionParams,
+        MigratePositionFromV1Params, MigratePositionFromV2Params, ModifyPositionParamsSingletonV2,
     };
     use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
@@ -99,11 +107,6 @@ mod Test_3251219_Migrate {
         IStarkgateERC20Dispatcher { contract_address: usdc.contract_address }.permissioned_mint(user, 100000_000_000);
         stop_cheat_caller_address(usdc.contract_address);
 
-        // // seed liquidity
-        // start_cheat_caller_address(eth.contract_address, lp);
-        // eth.approve(pool_1.contract_address, 100 * SCALE);
-        // stop_cheat_caller_address(eth.contract_address);
-
         let test_config = TestConfig { migrate, eth, usdc, usdc_e, user, pool_1, pool_2, singleton_v2, pool_id };
 
         test_config
@@ -168,24 +171,22 @@ mod Test_3251219_Migrate {
 
     // #[test]
     // #[fork("Mainnet")]
-    // fn test_migrate_position_from_v2() {
-    //     let TestConfig { pool_1, pool_2, migrate, eth, usdc, user, .. } = setup();
+    // fn test_migrate_position_from_v2_usdc_e_to_usdc() {
+    //     let TestConfig { pool_1, migrate, eth, usdc, usdc_e, user, .. } = setup();
 
-    //     usdc.approve(pool_1.contract_address, 10000_000_000.into());
+    //     usdc_e.approve(pool_1.contract_address, 10000_000_000.into());
 
     //     pool_1
     //         .modify_position(
     //             ModifyPositionParams {
-    //                 collateral_asset: usdc.contract_address,
+    //                 collateral_asset: usdc_e.contract_address,
     //                 debt_asset: eth.contract_address,
     //                 user,
     //                 collateral: Amount {
-    //                     denomination: AmountDenomination::Assets,
-    //                     value: I257Trait::new(10000_000_000, false),
+    //                     denomination: AmountDenomination::Assets, value: I257Trait::new(10000_000_000, false),
     //                 },
     //                 debt: Amount {
-    //                     denomination: AmountDenomination::Assets,
-    //                     value: I257Trait::new(SCALE.into(), false),
+    //                     denomination: AmountDenomination::Assets, value: I257Trait::new(SCALE.into(), false),
     //                 },
     //             },
     //         );
@@ -195,13 +196,12 @@ mod Test_3251219_Migrate {
     //     assert!(debt == SCALE.into() + 1);
 
     //     pool_1.modify_delegation(migrate.contract_address, true);
-    //     pool_2.modify_delegation(migrate.contract_address, true);
 
     //     migrate
-    //         .migrate_position(
-    //             MigratePositionParams {
+    //         .migrate_position_from_v2(
+    //             MigratePositionFromV2Params {
     //                 from_pool: pool_1.contract_address,
-    //                 to_pool: pool_2.contract_address,
+    //                 to_pool: pool_1.contract_address,
     //                 collateral_asset: usdc.contract_address,
     //                 debt_asset: eth.contract_address,
     //                 from_user: user,
@@ -214,7 +214,7 @@ mod Test_3251219_Migrate {
     //     assert!(collateral == 0);
     //     assert!(debt == 0);
 
-    //     let (_, collateral, debt) = pool_2.position(usdc.contract_address, eth.contract_address, user);
+    //     let (_, collateral, debt) = pool_1.position(usdc.contract_address, eth.contract_address, user);
     //     assert!(collateral == 10000_000_000 - 2);
     //     assert!(debt == SCALE.into() + 2);
     // }

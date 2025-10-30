@@ -71,7 +71,7 @@ pub struct MigratePositionFromV1Params {
 }
 
 #[derive(Serde, Drop, Clone)]
-pub struct MigratePositionParams {
+pub struct MigratePositionFromV2Params {
     pub from_pool: ContractAddress,
     pub to_pool: ContractAddress,
     pub collateral_asset: ContractAddress,
@@ -83,14 +83,14 @@ pub struct MigratePositionParams {
 
 #[derive(Serde, Drop, Clone)]
 pub enum MigrateAction {
-    MigrateFromV1: MigratePositionFromV1Params,
-    MigratePositionV2: MigratePositionParams,
+    MigratePositionFromV1: MigratePositionFromV1Params,
+    MigratePositionFromV2: MigratePositionFromV2Params,
 }
 
 #[starknet::interface]
 pub trait IMigrate<TContractState> {
     fn migrate_position_from_v1(ref self: TContractState, params: MigratePositionFromV1Params);
-    fn migrate_position(ref self: TContractState, params: MigratePositionParams);
+    fn migrate_position_from_v2(ref self: TContractState, params: MigratePositionFromV2Params);
 }
 
 #[starknet::contract]
@@ -105,7 +105,7 @@ pub mod Migrate {
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrate, ISingletonV2Dispatcher, ISingletonV2DispatcherTrait,
         ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait, MigrateAction, MigratePositionFromV1Params,
-        MigratePositionParams, ModifyPositionParamsSingletonV2, UpdatePositionResponse,
+        MigratePositionFromV2Params, ModifyPositionParamsSingletonV2, UpdatePositionResponse,
     };
 
     #[storage]
@@ -145,7 +145,7 @@ pub mod Migrate {
             self.pool.write(0.try_into().unwrap());
         }
 
-        fn migrate_from_v1(ref self: ContractState, params: MigratePositionFromV1Params, amount: u256) {
+        fn _migrate_position_from_v1(ref self: ContractState, params: MigratePositionFromV1Params, amount: u256) {
             let singleton_v2 = self.singleton_v2.read();
 
             let MigratePositionFromV1Params {
@@ -202,8 +202,8 @@ pub mod Migrate {
                 );
         }
 
-        fn migrate_from_v2(ref self: ContractState, params: MigratePositionParams, amount: u256) {
-            let MigratePositionParams {
+        fn _migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params, amount: u256) {
+            let MigratePositionFromV2Params {
                 from_pool, to_pool, collateral_asset, debt_asset, from_user, to_user, max_ltv_delta,
             } = params;
 
@@ -344,8 +344,8 @@ pub mod Migrate {
             let migrate_action: MigrateAction = Serde::deserialize(ref data).unwrap();
 
             match migrate_action {
-                MigrateAction::MigrateFromV1(params) => self.migrate_from_v1(params, amount),
-                MigrateAction::MigratePositionV2(params) => self.migrate_from_v2(params, amount),
+                MigrateAction::MigratePositionFromV1(params) => self._migrate_position_from_v1(params, amount),
+                MigrateAction::MigratePositionFromV2(params) => self._migrate_position_from_v2(params, amount),
             }
 
             IERC20Dispatcher { contract_address: asset }.approve(get_caller_address(), amount);
@@ -363,15 +363,15 @@ pub mod Migrate {
             let to_pool = IPoolDispatcher { contract_address: to_pool };
             let (_, _, debt) = singleton_v2.position(from_pool_id, collateral_asset, debt_asset, from_user);
 
-            let migrate_action = MigrateAction::MigrateFromV1(params);
+            let migrate_action = MigrateAction::MigratePositionFromV1(params);
             let mut data: Array<felt252> = array![];
             Serde::serialize(@migrate_action, ref data);
 
             self.call_flash_loan(pool: to_pool, asset: debt_asset, amount: debt, data: data.span());
         }
 
-        fn migrate_position(ref self: ContractState, params: MigratePositionParams) {
-            let MigratePositionParams {
+        fn migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params) {
+            let MigratePositionFromV2Params {
                 from_pool, to_pool, collateral_asset, debt_asset, from_user, ..,
             } = params.clone();
 
@@ -379,7 +379,7 @@ pub mod Migrate {
             let to_pool = IPoolDispatcher { contract_address: to_pool };
             let (_, _, debt) = from_pool.position(collateral_asset, debt_asset, from_user);
 
-            let migrate_action = MigrateAction::MigratePositionV2(params);
+            let migrate_action = MigrateAction::MigratePositionFromV2(params);
             let mut data: Array<felt252> = array![];
             Serde::serialize(@migrate_action, ref data);
 
