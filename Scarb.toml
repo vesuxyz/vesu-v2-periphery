@@ -28,7 +28,7 @@ sort-module-level-items = true
 name = "Mainnet"
 url = "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_8/rdvL5iHyAP1ZHb84DY8JR"
 # block_id.number = "2386336"
-block_id.number = "3364960"
+block_id.number = "3364965"
 
 [scripts]
 buildRelease = "scarb --profile release build"

@@ -198,7 +198,7 @@ pub mod Migrate {
                             } else {
                                 AmountSingletonV2 {
                                     amount_type: AmountType::Delta,
-                                    denomination: AmountDenomination::Native,
+                                    denomination: AmountDenomination::Assets,
                                     value: I257Trait::new(debt_to_migrate, true),
                                 }
                             },
@@ -319,7 +319,9 @@ pub mod Migrate {
                             .approve(migrator.contract_address, collateral_delta),
                         "approve-failed",
                     );
+                    println!("A");
                     migrator.swap_to_new(collateral_delta);
+                    println!("B");
                     new_token
                 } else {
                     collateral_asset
@@ -332,8 +334,8 @@ pub mod Migrate {
             );
 
             // if legacy token is debt asset, then borrow the new token
-            let debt_asset_is_usdc_e = debt_asset == legacy_token;
-            debt_asset = if debt_asset_is_usdc_e {
+            let debt_asset_is_legacy_token = debt_asset == legacy_token;
+            debt_asset = if debt_asset_is_legacy_token {
                 new_token
             } else {
                 debt_asset
@@ -360,7 +362,7 @@ pub mod Migrate {
             assert!(from_ltv - max_ltv_delta <= to_ltv && to_ltv <= from_ltv + max_ltv_delta, "ltv-out-of-range");
 
             // if legacy token is debt asset, then convert borrowed new token back to the legacy token
-            if debt_asset_is_usdc_e {
+            if debt_asset_is_legacy_token {
                 assert!(
                     IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
                     "approve-failed",

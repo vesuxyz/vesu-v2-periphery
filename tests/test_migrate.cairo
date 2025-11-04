@@ -5,13 +5,13 @@ trait IStarkgateERC20<TContractState> {
     fn permissioned_mint(ref self: TContractState, account: ContractAddress, amount: u256);
 }
 
-// test v1 to v2
-// test v1 to v2 collateral asset is usdc.e
-// test v1 to v2 debt asset is usdc.e
+// test v1 to v2 partial, full
+// test v1 to v2 collateral asset is usdc.e, partial, full
+// test v1 to v2 debt asset is usdc.e, partial, full
 
-// test v2 to v2
-// test v2 to v2 collateral asset is usdc.e
-// test v2 to v2 debt asset is usdc.e
+// test v2 to v2 partial, full
+// test v2 to v2 collateral asset is usdc.e, partial, full
+// test v2 to v2 debt asset is usdc.e, partial, full
 
 #[cfg(test)]
 mod Test_3251219_Migrate {
@@ -65,7 +65,8 @@ mod Test_3251219_Migrate {
                 0x06D4A1EC34c85b6129Ed433C46accfbE8B4B1225A3401C2767ea1060Ded208e7,
             >(),
         };
-        store(usdc_migrator.contract_address, selector!("l1_recipient_verified"), array![true.into()].span());
+        store(usdc_migrator.contract_address, selector!("l1_recipint_verified"), array![true.into()].span());
+        store(usdc_migrator.contract_address, selector!("allow_swap_to_legacy"), array![true.into()].span());
 
         let singleton_v2 = ISingletonV2Dispatcher {
             contract_address: contract_address_const::<
@@ -92,11 +93,13 @@ mod Test_3251219_Migrate {
 
         let user = get_contract_address();
         let lp = contract_address_const::<'lp'>();
+        let curator = pool_1.curator();
 
         let loaded = load(eth.contract_address, selector!("permitted_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
         start_cheat_caller_address(eth.contract_address, minter);
         IStarkgateERC20Dispatcher { contract_address: eth.contract_address }.permissioned_mint(lp, 100 * SCALE);
+        IStarkgateERC20Dispatcher { contract_address: eth.contract_address }.permissioned_mint(user, 100 * SCALE);
         stop_cheat_caller_address(eth.contract_address);
 
         let loaded = load(legacy_usdc.contract_address, selector!("permitted_minter"), 1);
@@ -104,6 +107,8 @@ mod Test_3251219_Migrate {
         start_cheat_caller_address(legacy_usdc.contract_address, minter);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
             .permissioned_mint(user, 100000_000_000);
+        IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
+            .permissioned_mint(usdc_migrator.contract_address, 100000_000_000);
         stop_cheat_caller_address(legacy_usdc.contract_address);
 
         let loaded = load(new_usdc.contract_address, selector!("permitted_minter"), 1);
@@ -113,7 +118,16 @@ mod Test_3251219_Migrate {
             .permissioned_mint(user, 100000_000_000);
         IStarkgateERC20Dispatcher { contract_address: new_usdc.contract_address }
             .permissioned_mint(usdc_migrator.contract_address, 100000_000_000);
+        IStarkgateERC20Dispatcher { contract_address: new_usdc.contract_address }
+            .permissioned_mint(curator, 100000_000_000);
         stop_cheat_caller_address(new_usdc.contract_address);
+
+        start_cheat_caller_address(new_usdc.contract_address, curator);
+        new_usdc.approve(pool_1.contract_address, 100000_000_000);
+        stop_cheat_caller_address(new_usdc.contract_address);
+        start_cheat_caller_address(pool_1.contract_address, curator);
+        pool_1.donate_to_reserve(new_usdc.contract_address, 100000_000_000);
+        stop_cheat_caller_address(pool_1.contract_address);
 
         let test_config = TestConfig {
             migrate, eth, legacy_usdc, new_usdc, user, pool_1, pool_2, singleton_v2, pool_id,
@@ -124,7 +138,7 @@ mod Test_3251219_Migrate {
 
     #[test]
     #[fork("Mainnet")]
-    fn test_migrate_position_from_v1_full() {
+    fn test_migrate_position_from_v1() {
         let TestConfig { pool_1, migrate, eth, new_usdc, user, singleton_v2, pool_id, .. } = setup();
 
         new_usdc.approve(singleton_v2.contract_address, 10000_000_000.into());
@@ -168,6 +182,30 @@ mod Test_3251219_Migrate {
                     from_user: user,
                     to_user: user,
                     max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: 5000_000_000,
+                    debt_to_migrate: SCALE / 2,
+                },
+            );
+
+        let (_, collateral, debt) = singleton_v2
+            .position(pool_id, new_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 2);
+
+        let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 1);
+
+        migrate
+            .migrate_position_from_v1(
+                MigratePositionFromV1Params {
+                    from_pool_id: pool_id,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: new_usdc.contract_address,
+                    debt_asset: eth.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
                     collateral_to_migrate: 0,
                     debt_to_migrate: 0,
                 },
@@ -180,12 +218,12 @@ mod Test_3251219_Migrate {
 
         let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
-        assert!(debt == SCALE.into() + 2);
+        assert!(debt == SCALE.into() + 3);
     }
 
     #[test]
     #[fork("Mainnet")]
-    fn test_migrate_position_from_v1_legacy_usdc_to_new_usdc_full() {
+    fn test_migrate_position_from_v1_legacy_usdc_to_new_usdc_collateral_asset() {
         let TestConfig { pool_1, migrate, eth, legacy_usdc, new_usdc, user, singleton_v2, pool_id, .. } = setup();
 
         legacy_usdc.approve(singleton_v2.contract_address, 10000_000_000.into());
@@ -229,6 +267,30 @@ mod Test_3251219_Migrate {
                     from_user: user,
                     to_user: user,
                     max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: 5000_000_000,
+                    debt_to_migrate: SCALE / 2,
+                },
+            );
+
+        let (_, collateral, debt) = singleton_v2
+            .position(pool_id, legacy_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 2);
+
+        let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 1);
+
+        migrate
+            .migrate_position_from_v1(
+                MigratePositionFromV1Params {
+                    from_pool_id: pool_id,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: legacy_usdc.contract_address,
+                    debt_asset: eth.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
                     collateral_to_migrate: 0,
                     debt_to_migrate: 0,
                 },
@@ -241,7 +303,92 @@ mod Test_3251219_Migrate {
 
         let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
-        assert!(debt == SCALE.into() + 2);
+        assert!(debt == SCALE.into() + 3);
+    }
+
+    #[test]
+    #[fork("Mainnet")]
+    fn test_migrate_position_from_v1_legacy_usdc_to_new_usdc_debt_asset() {
+        let TestConfig { pool_1, migrate, eth, legacy_usdc, new_usdc, user, singleton_v2, pool_id, .. } = setup();
+
+        eth.approve(singleton_v2.contract_address, SCALE.into());
+
+        singleton_v2
+            .modify_position(
+                ModifyPositionParamsSingletonV2 {
+                    pool_id,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    user,
+                    collateral: AmountSingletonV2 {
+                        amount_type: AmountType::Delta,
+                        denomination: AmountDenomination::Assets,
+                        value: I257Trait::new(SCALE.into(), false),
+                    },
+                    debt: AmountSingletonV2 {
+                        amount_type: AmountType::Delta,
+                        denomination: AmountDenomination::Assets,
+                        value: I257Trait::new(1000_000_000, false),
+                    },
+                    data: ArrayTrait::new().span(),
+                },
+            );
+
+        let (_, collateral, debt) = singleton_v2
+            .position(pool_id, eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == SCALE.into() - 1);
+        assert!(debt == 1000_000_000 + 1);
+
+        singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
+        pool_1.modify_delegation(migrate.contract_address, true);
+
+        migrate
+            .migrate_position_from_v1(
+                MigratePositionFromV1Params {
+                    from_pool_id: pool_id,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: SCALE / 2,
+                    debt_to_migrate: 500_000_000,
+                },
+            );
+
+        let (_, collateral, debt) = singleton_v2
+            .position(pool_id, eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == SCALE / 2 - 1);
+        assert!(debt == 500_000_000 + 1);
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
+        assert!(collateral == SCALE / 2 - 1);
+        assert!(debt == 500_000_000 + 1);
+
+        migrate
+            .migrate_position_from_v1(
+                MigratePositionFromV1Params {
+                    from_pool_id: pool_id,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: 0,
+                    debt_to_migrate: 0,
+                },
+            );
+
+        let (_, collateral, debt) = singleton_v2
+            .position(pool_id, eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == 0);
+        assert!(debt == 0);
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
+        assert!(collateral == SCALE - 2);
+        assert!(debt == 1000_000_000 + 2);
     }
     // #[test]
 // #[fork("Mainnet")]
