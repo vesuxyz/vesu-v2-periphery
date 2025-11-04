@@ -6,6 +6,8 @@ use vesu::data_model::{AmountDenomination, AssetPrice, Position, UpdatePositionR
 pub trait ITokenMigration<T> {
     fn swap_to_new(ref self: T, amount: u256);
     fn swap_to_legacy(ref self: T, amount: u256);
+    fn get_legacy_token(self: @T) -> ContractAddress;
+    fn get_new_token(self: @T) -> ContractAddress;
 }
 
 #[derive(PartialEq, Copy, Drop, Serde, Default)]
@@ -67,6 +69,8 @@ pub struct MigratePositionFromV1Params {
     pub debt_asset: ContractAddress,
     pub from_user: ContractAddress,
     pub to_user: ContractAddress,
+    pub collateral_to_migrate: u256,
+    pub debt_to_migrate: u256,
     pub max_ltv_delta: u256,
 }
 
@@ -78,6 +82,8 @@ pub struct MigratePositionFromV2Params {
     pub debt_asset: ContractAddress,
     pub from_user: ContractAddress,
     pub to_user: ContractAddress,
+    pub collateral_to_migrate: u256,
+    pub debt_to_migrate: u256,
     pub max_ltv_delta: u256,
 }
 
@@ -114,25 +120,13 @@ pub mod Migrate {
         pool: ContractAddress,
         usdc_e: ContractAddress,
         usdc: ContractAddress,
-        usdc_migrator: ITokenMigrationDispatcher,
+        migrator: ITokenMigrationDispatcher,
     }
 
-    #[event]
-    #[derive(Drop, starknet::Event)]
-    enum Event {}
-
     #[constructor]
-    fn constructor(
-        ref self: ContractState,
-        singleton_v2: ISingletonV2Dispatcher,
-        usdc_e: ContractAddress,
-        usdc: ContractAddress,
-        usdc_migrator: ITokenMigrationDispatcher,
-    ) {
+    fn constructor(ref self: ContractState, singleton_v2: ISingletonV2Dispatcher, migrator: ITokenMigrationDispatcher) {
         self.singleton_v2.write(singleton_v2);
-        self.usdc_e.write(usdc_e);
-        self.usdc.write(usdc);
-        self.usdc_migrator.write(usdc_migrator);
+        self.migrator.write(migrator);
     }
 
     #[generate_trait]
@@ -149,7 +143,15 @@ pub mod Migrate {
             let singleton_v2 = self.singleton_v2.read();
 
             let MigratePositionFromV1Params {
-                from_pool_id, to_pool, collateral_asset, debt_asset, from_user, to_user, max_ltv_delta,
+                from_pool_id,
+                to_pool,
+                collateral_asset,
+                debt_asset,
+                from_user,
+                to_user,
+                max_ltv_delta,
+                collateral_to_migrate,
+                debt_to_migrate,
             } = params;
 
             let to_pool = IPoolDispatcher { contract_address: to_pool };
@@ -157,6 +159,7 @@ pub mod Migrate {
             let (_, collateral_value, debt_value) = singleton_v2
                 .check_collateralization(from_pool_id, collateral_asset, debt_asset, from_user);
             let from_ltv = debt_value * SCALE / collateral_value;
+            let (_, collateral, debt) = singleton_v2.position(from_pool_id, collateral_asset, debt_asset, from_user);
 
             assert!(
                 IERC20Dispatcher { contract_address: debt_asset }.approve(singleton_v2.contract_address, amount),
@@ -173,15 +176,31 @@ pub mod Migrate {
                             collateral_asset,
                             debt_asset,
                             user: from_user,
-                            collateral: AmountSingletonV2 {
-                                amount_type: AmountType::Target,
-                                denomination: AmountDenomination::Native,
-                                value: I257Trait::new(0, false),
+                            collateral: if (collateral_to_migrate == 0 || collateral_to_migrate > collateral) {
+                                AmountSingletonV2 {
+                                    amount_type: AmountType::Target,
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(0, false),
+                                }
+                            } else {
+                                AmountSingletonV2 {
+                                    amount_type: AmountType::Delta,
+                                    denomination: AmountDenomination::Assets,
+                                    value: I257Trait::new(collateral_to_migrate, true),
+                                }
                             },
-                            debt: AmountSingletonV2 {
-                                amount_type: AmountType::Target,
-                                denomination: AmountDenomination::Native,
-                                value: I257Trait::new(0, false),
+                            debt: if (debt_to_migrate == 0 || debt_to_migrate > debt) {
+                                AmountSingletonV2 {
+                                    amount_type: AmountType::Target,
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(0, false),
+                                }
+                            } else {
+                                AmountSingletonV2 {
+                                    amount_type: AmountType::Delta,
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(debt_to_migrate, true),
+                                }
                             },
                             data: ArrayTrait::new().span(),
                         },
@@ -204,13 +223,21 @@ pub mod Migrate {
 
         fn _migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params, amount: u256) {
             let MigratePositionFromV2Params {
-                from_pool, to_pool, collateral_asset, debt_asset, from_user, to_user, max_ltv_delta,
+                from_pool,
+                to_pool,
+                collateral_asset,
+                debt_asset,
+                from_user,
+                to_user,
+                max_ltv_delta,
+                collateral_to_migrate,
+                debt_to_migrate,
             } = params;
 
             let from_pool = IPoolDispatcher { contract_address: from_pool };
             let to_pool = IPoolDispatcher { contract_address: to_pool };
 
-            let (position, _, _) = from_pool.position(collateral_asset, debt_asset, from_user);
+            let (position, collateral, debt) = from_pool.position(collateral_asset, debt_asset, from_user);
             let (_, collateral_value, debt_value) = from_pool
                 .check_collateralization(collateral_asset, debt_asset, from_user);
             let from_ltv = debt_value * SCALE / collateral_value;
@@ -229,13 +256,27 @@ pub mod Migrate {
                             collateral_asset,
                             debt_asset,
                             user: from_user,
-                            collateral: Amount {
-                                denomination: AmountDenomination::Native,
-                                value: I257Trait::new(position.collateral_shares, true),
+                            collateral: if (collateral_to_migrate == 0 || collateral_to_migrate > collateral) {
+                                Amount {
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(position.collateral_shares, true),
+                                }
+                            } else {
+                                Amount {
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(collateral_to_migrate, true),
+                                }
                             },
-                            debt: Amount {
-                                denomination: AmountDenomination::Native,
-                                value: I257Trait::new(position.nominal_debt, true),
+                            debt: if (debt_to_migrate == 0 || debt_to_migrate > debt) {
+                                Amount {
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(position.nominal_debt, true),
+                                }
+                            } else {
+                                Amount {
+                                    denomination: AmountDenomination::Native,
+                                    value: I257Trait::new(debt_to_migrate, true),
+                                }
                             },
                         },
                     );
@@ -266,20 +307,20 @@ pub mod Migrate {
             from_ltv: u256,
             max_ltv_delta: u256,
         ) {
-            let usdc_migrator = self.usdc_migrator.read();
-            let usdc_e = self.usdc_e.read();
-            let usdc = self.usdc.read();
+            let migrator = self.migrator.read();
+            let legacy_token = migrator.get_legacy_token();
+            let new_token = migrator.get_new_token();
 
-            // if usdc.e is collateral asset, then convert to usdc
+            // if legacy token is collateral asset, then convert to the new token
             collateral_asset =
-                if collateral_asset == usdc_e {
+                if collateral_asset == legacy_token {
                     assert!(
                         IERC20Dispatcher { contract_address: collateral_asset }
-                            .approve(usdc_migrator.contract_address, collateral_delta),
+                            .approve(migrator.contract_address, collateral_delta),
                         "approve-failed",
                     );
-                    usdc_migrator.swap_to_new(collateral_delta);
-                    usdc
+                    migrator.swap_to_new(collateral_delta);
+                    new_token
                 } else {
                     collateral_asset
                 };
@@ -290,10 +331,10 @@ pub mod Migrate {
                 "approve-failed",
             );
 
-            // if usdc.e is debt asset, then borrow usdc
-            let debt_asset_is_usdc_e = debt_asset == usdc_e;
+            // if legacy token is debt asset, then borrow the new token
+            let debt_asset_is_usdc_e = debt_asset == legacy_token;
             debt_asset = if debt_asset_is_usdc_e {
-                usdc
+                new_token
             } else {
                 debt_asset
             };
@@ -318,13 +359,13 @@ pub mod Migrate {
             let to_ltv = debt_value * SCALE / collateral_value;
             assert!(from_ltv - max_ltv_delta <= to_ltv && to_ltv <= from_ltv + max_ltv_delta, "ltv-out-of-range");
 
-            // if usdc.e is debt asset, then convert borrowed usdc back to usdc.e
+            // if legacy token is debt asset, then convert borrowed new token back to the legacy token
             if debt_asset_is_usdc_e {
                 assert!(
-                    IERC20Dispatcher { contract_address: usdc }.approve(usdc_migrator.contract_address, debt_delta),
+                    IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
                     "approve-failed",
                 );
-                usdc_migrator.swap_to_legacy(debt_delta);
+                migrator.swap_to_legacy(debt_delta);
             }
         }
     }
@@ -356,12 +397,17 @@ pub mod Migrate {
     impl MigrateImpl of IMigrate<ContractState> {
         fn migrate_position_from_v1(ref self: ContractState, params: MigratePositionFromV1Params) {
             let MigratePositionFromV1Params {
-                from_pool_id, to_pool, collateral_asset, debt_asset, from_user, ..,
+                from_pool_id, to_pool, collateral_asset, debt_asset, from_user, debt_to_migrate, ..,
             } = params.clone();
 
             let singleton_v2 = self.singleton_v2.read();
             let to_pool = IPoolDispatcher { contract_address: to_pool };
             let (_, _, debt) = singleton_v2.position(from_pool_id, collateral_asset, debt_asset, from_user);
+            let debt = if (debt_to_migrate == 0 || debt_to_migrate > debt) {
+                debt
+            } else {
+                debt_to_migrate
+            };
 
             let migrate_action = MigrateAction::MigratePositionFromV1(params);
             let mut data: Array<felt252> = array![];
@@ -372,12 +418,17 @@ pub mod Migrate {
 
         fn migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params) {
             let MigratePositionFromV2Params {
-                from_pool, to_pool, collateral_asset, debt_asset, from_user, ..,
+                from_pool, to_pool, collateral_asset, debt_asset, from_user, debt_to_migrate, ..,
             } = params.clone();
 
             let from_pool = IPoolDispatcher { contract_address: from_pool };
             let to_pool = IPoolDispatcher { contract_address: to_pool };
             let (_, _, debt) = from_pool.position(collateral_asset, debt_asset, from_user);
+            let debt = if (debt_to_migrate == 0 || debt_to_migrate > debt) {
+                debt
+            } else {
+                debt_to_migrate
+            };
 
             let migrate_action = MigrateAction::MigratePositionFromV2(params);
             let mut data: Array<felt252> = array![];
