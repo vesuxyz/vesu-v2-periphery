@@ -27,11 +27,11 @@ sort-module-level-items = true
 [[tool.snforge.fork]]
 name = "Mainnet"
 url = "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_8/rdvL5iHyAP1ZHb84DY8JR"
-# block_id.number = "2386336"
-block_id.number = "3364965"
+block_id.number = "2386336"
+# block_id.number = "3444100"
 
 [scripts]
 buildRelease = "scarb --profile release build"
 deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
-test = "snforge test --max-n-steps 100000000 'test_migrate_position'"
+test = "snforge test --max-n-steps 100000000"

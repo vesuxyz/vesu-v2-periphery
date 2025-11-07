@@ -263,7 +263,7 @@ pub mod Migrate {
                                 }
                             } else {
                                 Amount {
-                                    denomination: AmountDenomination::Native,
+                                    denomination: AmountDenomination::Assets,
                                     value: I257Trait::new(collateral_to_migrate, true),
                                 }
                             },
@@ -274,7 +274,7 @@ pub mod Migrate {
                                 }
                             } else {
                                 Amount {
-                                    denomination: AmountDenomination::Native,
+                                    denomination: AmountDenomination::Assets,
                                     value: I257Trait::new(debt_to_migrate, true),
                                 }
                             },
@@ -319,9 +319,7 @@ pub mod Migrate {
                             .approve(migrator.contract_address, collateral_delta),
                         "approve-failed",
                     );
-                    println!("A");
                     migrator.swap_to_new(collateral_delta);
-                    println!("B");
                     new_token
                 } else {
                     collateral_asset
