@@ -123,6 +123,8 @@ mod Test_3494530_Migrate {
             .permissioned_mint(user, 100000_000_000);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
             .permissioned_mint(usdc_migrator.contract_address, 100000_000_000);
+        IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
+            .permissioned_mint(curator, 100000_000_000);
         stop_cheat_caller_address(legacy_usdc.contract_address);
 
         let loaded = load(new_usdc.contract_address, selector!("permitted_minter"), 1);
@@ -139,8 +141,14 @@ mod Test_3494530_Migrate {
         start_cheat_caller_address(new_usdc.contract_address, curator);
         new_usdc.approve(pool_1.contract_address, 100000_000_000);
         stop_cheat_caller_address(new_usdc.contract_address);
+        
+        start_cheat_caller_address(legacy_usdc.contract_address, curator);
+        legacy_usdc.approve(pool_1.contract_address, 100000_000_000);
+        stop_cheat_caller_address(legacy_usdc.contract_address);
+        
         start_cheat_caller_address(pool_1.contract_address, curator);
         pool_1.donate_to_reserve(new_usdc.contract_address, 100000_000_000);
+        pool_1.donate_to_reserve(legacy_usdc.contract_address, 100000_000_000);
         stop_cheat_caller_address(pool_1.contract_address);
 
         let test_config = TestConfig {
@@ -478,6 +486,81 @@ mod Test_3494530_Migrate {
         let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
         assert!(debt == SCALE.into() + 3);
+    }
+
+    #[test]
+    #[fork("Mainnet")]
+    fn test_migrate_position_from_v2_legacy_usdc_to_new_usdc_debt_asset() {
+        let TestConfig { pool_1, migrate, eth, legacy_usdc, new_usdc, user, .. } = setup();
+
+        eth.approve(pool_1.contract_address, SCALE.into());
+
+        pool_1
+            .modify_position(
+                ModifyPositionParams {
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    user,
+                    collateral: Amount {
+                        denomination: AmountDenomination::Assets, value: I257Trait::new(SCALE.into(), false),
+                    },
+                    debt: Amount {
+                        denomination: AmountDenomination::Assets, value: I257Trait::new(1000_000_000, false),
+                    },
+                },
+            );
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == SCALE.into() - 1);
+        assert!(debt == 1000_000_000 + 1);
+
+        pool_1.modify_delegation(migrate.contract_address, true);
+
+        migrate
+            .migrate_position_from_v2(
+                MigratePositionFromV2Params {
+                    from_pool: pool_1.contract_address,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: SCALE / 2,
+                    debt_to_migrate: 500_000_000,
+                },
+            );
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == SCALE / 2 - 1);
+        assert!(debt == 500_000_000 + 1);
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
+        assert!(collateral == SCALE / 2 - 1);
+        assert!(debt == 500_000_000 + 1);
+
+        migrate
+            .migrate_position_from_v2(
+                MigratePositionFromV2Params {
+                    from_pool: pool_1.contract_address,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: 0,
+                    debt_to_migrate: 0,
+                },
+            );
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == 0);
+        assert!(debt == 0);
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
+        assert!(collateral == SCALE - 3);
+        assert!(debt == 1000_000_000 + 2);
     }
 }
 
