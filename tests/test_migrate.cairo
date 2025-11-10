@@ -14,7 +14,7 @@ trait IStarkgateERC20<TContractState> {
 // test v2 to v2 debt asset is usdc.e, partial, full
 
 #[cfg(test)]
-mod Test_3444100_Migrate {
+mod Test_3494530_Migrate {
     use alexandria_math::i257::I257Trait;
     use ekubo::interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
     use snforge_std::{load, start_cheat_caller_address, stop_cheat_caller_address, store};
@@ -26,8 +26,8 @@ mod Test_3444100_Migrate {
     use vesu::units::SCALE;
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
-        ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, ITokenMigrationDispatcherTrait,
-        MigratePositionFromV1Params, MigratePositionFromV2Params, ModifyPositionParamsSingletonV2,
+        ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, MigratePositionFromV1Params,
+        MigratePositionFromV2Params, ModifyPositionParamsSingletonV2,
     };
     use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
@@ -67,6 +67,20 @@ mod Test_3444100_Migrate {
         };
         store(usdc_migrator.contract_address, selector!("l1_recipient_verified"), array![true.into()].span());
         store(usdc_migrator.contract_address, selector!("allow_swap_to_legacy"), array![true.into()].span());
+        store(usdc_migrator.contract_address, selector!("batch_size"), array![1_000_000_000_000.into()].span());
+        store(
+            usdc_migrator.contract_address,
+            selector!("token_supplier"),
+            array![usdc_migrator.contract_address.into()].span(),
+        );
+
+        start_cheat_caller_address(new_usdc.contract_address, usdc_migrator.contract_address);
+        new_usdc.approve(usdc_migrator.contract_address, 100000_000_000);
+        stop_cheat_caller_address(new_usdc.contract_address);
+
+        start_cheat_caller_address(legacy_usdc.contract_address, usdc_migrator.contract_address);
+        legacy_usdc.approve(usdc_migrator.contract_address, 100000_000_000);
+        stop_cheat_caller_address(legacy_usdc.contract_address);
 
         let singleton_v2 = ISingletonV2Dispatcher {
             contract_address: contract_address_const::<
@@ -303,7 +317,7 @@ mod Test_3444100_Migrate {
 
         let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
-        assert!(debt == SCALE.into() + 3);
+        assert!(debt == SCALE.into() + 4);
     }
 
     #[test]
@@ -387,7 +401,7 @@ mod Test_3444100_Migrate {
         assert!(debt == 0);
 
         let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
-        assert!(collateral == SCALE - 3);
+        assert!(collateral == SCALE - 4);
         assert!(debt == 1000_000_000 + 2);
     }
 
@@ -435,12 +449,35 @@ mod Test_3444100_Migrate {
             );
 
         let (_, collateral, debt) = pool_1.position(legacy_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 1);
+
+        let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
+        assert!(collateral == 5000_000_000 - 1);
+        assert!(debt == SCALE / 2 + 1);
+
+        migrate
+            .migrate_position_from_v2(
+                MigratePositionFromV2Params {
+                    from_pool: pool_1.contract_address,
+                    to_pool: pool_1.contract_address,
+                    collateral_asset: legacy_usdc.contract_address,
+                    debt_asset: eth.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    max_ltv_delta: SCALE / 1000,
+                    collateral_to_migrate: 0,
+                    debt_to_migrate: 0,
+                },
+            );
+
+        let (_, collateral, debt) = pool_1.position(legacy_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 0);
         assert!(debt == 0);
 
         let (_, collateral, debt) = pool_1.position(new_usdc.contract_address, eth.contract_address, user);
         assert!(collateral == 10000_000_000 - 2);
-        assert!(debt == SCALE.into() + 2);
+        assert!(debt == SCALE.into() + 3);
     }
 }
 

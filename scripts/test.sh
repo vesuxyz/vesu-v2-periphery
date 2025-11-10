@@ -11,9 +11,9 @@ sed -e "s~MAINNET_RPC_URL~$MAINNET_RPC_URL~g" \
 
 snforge test "Test_2386336"
 
-# run tests at block 3444100
+# run tests at block 3494530
 sed -e "s~MAINNET_RPC_URL~$MAINNET_RPC_URL~g" \
-    -e "s~BLOCK_NUMBER~3444100~g" \
+    -e "s~BLOCK_NUMBER~3494530~g" \
     Scarb.toml.template > Scarb.toml
 
-snforge test "Test_3444100"
+snforge test "Test_3494530"
