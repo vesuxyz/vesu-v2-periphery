@@ -320,6 +320,7 @@ pub mod Migrate {
                             .approve(migrator.contract_address, collateral_delta),
                         "approve-failed",
                     );
+                    // assume swap amounts are 1:1
                     migrator.swap_to_new(collateral_delta);
                     new_token
                 } else {
@@ -366,6 +367,7 @@ pub mod Migrate {
                     IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
                     "approve-failed",
                 );
+                // assume swap amounts are 1:1
                 migrator.swap_to_legacy(debt_delta);
             }
         }
