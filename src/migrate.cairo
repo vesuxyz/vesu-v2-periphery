@@ -134,6 +134,7 @@ pub mod Migrate {
         fn call_flash_loan(
             ref self: ContractState, pool: IPoolDispatcher, asset: ContractAddress, amount: u256, data: Span<felt252>,
         ) {
+            assert!(self.pool.read() == 0.try_into().unwrap(), "reentrant-call");
             self.pool.write(pool.contract_address);
             pool.flash_loan(get_contract_address(), asset, amount, false, data);
             self.pool.write(0.try_into().unwrap());
