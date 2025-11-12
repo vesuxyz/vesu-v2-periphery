@@ -13,6 +13,76 @@ trait IStarkgateERC20<TContractState> {
 // test v2 to v2 collateral asset is usdc.e, partial, full
 // test v2 to v2 debt asset is usdc.e, partial, full
 
+// test reentrant call
+
+#[starknet::interface]
+trait IReentrantPool<TContractState> {
+    fn flash_loan(
+        ref self: TContractState,
+        receiver: ContractAddress,
+        asset: ContractAddress,
+        amount: u256,
+        is_legacy: bool,
+        data: Span<felt252>,
+    );
+}
+
+#[starknet::contract]
+pub mod ReentrantPool {
+    use starknet::ContractAddress;
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use vesu_v2_periphery::migrate::{
+        IMigrateDispatcher, IMigrateDispatcherTrait, MigrateAction, MigratePositionFromV2Params,
+    };
+    use super::IReentrantPool;
+
+    #[storage]
+    struct Storage {
+        migrate: IMigrateDispatcher,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, migrate: IMigrateDispatcher) {
+        self.migrate.write(migrate);
+    }
+
+    #[abi(embed_v0)]
+    impl ReentrantPoolImpl of IReentrantPool<ContractState> {
+        fn flash_loan(
+            ref self: ContractState,
+            receiver: ContractAddress,
+            asset: ContractAddress,
+            amount: u256,
+            is_legacy: bool,
+            mut data: Span<felt252>,
+        ) {
+            let migrate_action: MigrateAction = Serde::deserialize(ref data).unwrap();
+
+            match migrate_action {
+                MigrateAction::MigratePositionFromV1(_) => (),
+                MigrateAction::MigratePositionFromV2(params) => {
+                    self
+                        .migrate
+                        .read()
+                        .migrate_position_from_v2(
+                            MigratePositionFromV2Params {
+                                from_pool: params.from_pool,
+                                to_pool: params.to_pool,
+                                collateral_asset: params.collateral_asset,
+                                debt_asset: params.debt_asset,
+                                from_user: params.from_user,
+                                to_user: params.to_user,
+                                collateral_to_migrate: params.collateral_to_migrate,
+                                debt_to_migrate: params.debt_to_migrate,
+                                max_ltv_delta: params.max_ltv_delta,
+                            },
+                        );
+                },
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod Test_3494530_Migrate {
     use alexandria_math::i257::I257Trait;
@@ -29,7 +99,7 @@ mod Test_3494530_Migrate {
         ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, MigratePositionFromV1Params,
         MigratePositionFromV2Params, ModifyPositionParamsSingletonV2,
     };
-    use super::{IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
+    use super::{IReentrantPoolDispatcher, IStarkgateERC20Dispatcher, IStarkgateERC20DispatcherTrait};
 
     struct TestConfig {
         migrate: IMigrateDispatcher,
@@ -141,11 +211,11 @@ mod Test_3494530_Migrate {
         start_cheat_caller_address(new_usdc.contract_address, curator);
         new_usdc.approve(pool_1.contract_address, 100000_000_000);
         stop_cheat_caller_address(new_usdc.contract_address);
-        
+
         start_cheat_caller_address(legacy_usdc.contract_address, curator);
         legacy_usdc.approve(pool_1.contract_address, 100000_000_000);
         stop_cheat_caller_address(legacy_usdc.contract_address);
-        
+
         start_cheat_caller_address(pool_1.contract_address, curator);
         pool_1.donate_to_reserve(new_usdc.contract_address, 100000_000_000);
         pool_1.donate_to_reserve(legacy_usdc.contract_address, 100000_000_000);
@@ -561,6 +631,55 @@ mod Test_3494530_Migrate {
         let (_, collateral, debt) = pool_1.position(eth.contract_address, new_usdc.contract_address, user);
         assert!(collateral == SCALE - 3);
         assert!(debt == 1000_000_000 + 2);
+    }
+
+    #[test]
+    #[should_panic(expected: "reentrant-call")]
+    #[fork("Mainnet")]
+    fn test_migrate_reentrant_call() {
+        let TestConfig { pool_1, migrate, eth, legacy_usdc, user, .. } = setup();
+
+        eth.approve(pool_1.contract_address, SCALE.into());
+
+        pool_1
+            .modify_position(
+                ModifyPositionParams {
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    user,
+                    collateral: Amount {
+                        denomination: AmountDenomination::Assets, value: I257Trait::new(SCALE.into(), false),
+                    },
+                    debt: Amount {
+                        denomination: AmountDenomination::Assets, value: I257Trait::new(1000_000_000, false),
+                    },
+                },
+            );
+
+        let (_, collateral, debt) = pool_1.position(eth.contract_address, legacy_usdc.contract_address, user);
+        assert!(collateral == SCALE.into() - 1);
+        assert!(debt == 1000_000_000 + 1);
+
+        pool_1.modify_delegation(migrate.contract_address, true);
+
+        let reentrant_pool = IReentrantPoolDispatcher {
+            contract_address: deploy_with_args("ReentrantPool", array![migrate.contract_address.into()]),
+        };
+
+        migrate
+            .migrate_position_from_v2(
+                MigratePositionFromV2Params {
+                    from_pool: pool_1.contract_address,
+                    to_pool: reentrant_pool.contract_address,
+                    collateral_asset: eth.contract_address,
+                    debt_asset: legacy_usdc.contract_address,
+                    from_user: user,
+                    to_user: user,
+                    collateral_to_migrate: 0,
+                    debt_to_migrate: 0,
+                    max_ltv_delta: 0,
+                },
+            );
     }
 }
 
