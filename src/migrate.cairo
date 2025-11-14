@@ -71,7 +71,8 @@ pub struct MigratePositionFromV1Params {
     pub to_user: ContractAddress,
     pub collateral_to_migrate: u256,
     pub debt_to_migrate: u256,
-    pub max_ltv_delta: u256,
+    pub from_ltv_max_delta: u256,
+    pub from_to_max_ltv_delta: u256,
 }
 
 #[derive(Serde, Drop, Clone)]
@@ -84,7 +85,8 @@ pub struct MigratePositionFromV2Params {
     pub to_user: ContractAddress,
     pub collateral_to_migrate: u256,
     pub debt_to_migrate: u256,
-    pub max_ltv_delta: u256,
+    pub from_ltv_max_delta: u256,
+    pub from_to_max_ltv_delta: u256,
 }
 
 #[derive(Serde, Drop, Clone)]
@@ -129,6 +131,21 @@ pub mod Migrate {
         self.migrator.write(migrator);
     }
 
+    fn compute_ltv(collateral_value: u256, debt_value: u256) -> u256 {
+        if debt_value == 0 {
+            0
+        } else {
+            debt_value * SCALE / collateral_value
+        }
+    }
+
+    fn validate_ltv_range(old_ltv: u256, new_ltv: u256, ltv_max_delta: u256) {
+        assert!(
+            (old_ltv < ltv_max_delta || old_ltv - ltv_max_delta <= new_ltv) && new_ltv <= old_ltv + ltv_max_delta,
+            "ltv-out-of-range",
+        );
+    }
+
     #[generate_trait]
     impl InternalFunctions of InternalFunctionsTrait {
         fn call_flash_loan(
@@ -150,9 +167,10 @@ pub mod Migrate {
                 debt_asset,
                 from_user,
                 to_user,
-                max_ltv_delta,
                 collateral_to_migrate,
                 debt_to_migrate,
+                from_ltv_max_delta,
+                from_to_max_ltv_delta,
             } = params;
 
             let to_pool = IPoolDispatcher { contract_address: to_pool };
@@ -209,6 +227,10 @@ pub mod Migrate {
 
             assert!(debt_delta.abs() == amount, "debt-amount-mismatch");
 
+            let (_, collateral_value, debt_value) = singleton_v2
+                .check_collateralization(from_pool_id, collateral_asset, debt_asset, from_user);
+            validate_ltv_range(from_ltv, compute_ltv(collateral_value, debt_value), from_ltv_max_delta);
+
             self
                 .create_v2_position(
                     to_pool,
@@ -218,7 +240,7 @@ pub mod Migrate {
                     collateral_delta.abs(),
                     debt_delta.abs(),
                     from_ltv,
-                    max_ltv_delta,
+                    from_to_max_ltv_delta,
                 );
         }
 
@@ -230,9 +252,10 @@ pub mod Migrate {
                 debt_asset,
                 from_user,
                 to_user,
-                max_ltv_delta,
                 collateral_to_migrate,
                 debt_to_migrate,
+                from_ltv_max_delta,
+                from_to_max_ltv_delta,
             } = params;
 
             let from_pool = IPoolDispatcher { contract_address: from_pool };
@@ -284,6 +307,10 @@ pub mod Migrate {
 
             assert!(debt_delta.abs() == amount, "debt-amount-mismatch");
 
+            let (_, collateral_value, debt_value) = from_pool
+                .check_collateralization(collateral_asset, debt_asset, from_user);
+            validate_ltv_range(from_ltv, compute_ltv(collateral_value, debt_value), from_ltv_max_delta);
+
             self
                 .create_v2_position(
                     to_pool,
@@ -293,7 +320,7 @@ pub mod Migrate {
                     collateral_delta.abs(),
                     debt_delta.abs(),
                     from_ltv,
-                    max_ltv_delta,
+                    from_to_max_ltv_delta,
                 );
         }
 
@@ -306,7 +333,7 @@ pub mod Migrate {
             collateral_delta: u256,
             debt_delta: u256,
             from_ltv: u256,
-            max_ltv_delta: u256,
+            from_to_max_ltv_delta: u256,
         ) {
             let migrator = self.migrator.read();
             let legacy_token = migrator.get_legacy_token();
@@ -358,8 +385,7 @@ pub mod Migrate {
 
             let (_, collateral_value, debt_value) = to_pool
                 .check_collateralization(collateral_asset, debt_asset, to_user);
-            let to_ltv = debt_value * SCALE / collateral_value;
-            assert!(from_ltv - max_ltv_delta <= to_ltv && to_ltv <= from_ltv + max_ltv_delta, "ltv-out-of-range");
+            validate_ltv_range(from_ltv, compute_ltv(collateral_value, debt_value), from_to_max_ltv_delta);
 
             // if legacy token is debt asset, then convert borrowed new token back to the legacy token
             if debt_asset_is_legacy_token {
