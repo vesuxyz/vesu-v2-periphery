@@ -38,4 +38,4 @@ multiply = { path = "src/multiply.cairo" }
 buildRelease = "scarb --profile release build"
 deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
-test = "snforge test --max-n-steps 100000000 'test_migrate_position_from_v1_legacy_usdc_to_new_usdc_collateral_asset'"
+test = "snforge test --max-n-steps 100000000"

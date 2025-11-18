@@ -17,6 +17,7 @@ trait IStarkgateERC20<TContractState> {
 
 #[starknet::interface]
 trait IReentrantPool<TContractState> {
+    fn delegation(ref self: TContractState, delegatee: ContractAddress, delegation: bool) -> bool;
     fn flash_loan(
         ref self: TContractState,
         receiver: ContractAddress,
@@ -48,6 +49,10 @@ pub mod ReentrantPool {
 
     #[abi(embed_v0)]
     impl ReentrantPoolImpl of IReentrantPool<ContractState> {
+        fn delegation(ref self: ContractState, delegatee: ContractAddress, delegation: bool) -> bool {
+            true
+        }
+
         fn flash_loan(
             ref self: ContractState,
             receiver: ContractAddress,
@@ -867,6 +872,8 @@ mod Test_3494530_Migrate {
         let reentrant_pool = IReentrantPoolDispatcher {
             contract_address: deploy_with_args("ReentrantPool", array![migrate.contract_address.into()]),
         };
+
+        pool_1.modify_delegation(reentrant_pool.contract_address, true);
 
         migrate
             .migrate_position_from_v2(

@@ -57,6 +57,9 @@ pub trait ISingletonV2<TContractState> {
         debt_asset: ContractAddress,
         user: ContractAddress,
     ) -> (bool, u256, u256);
+    fn delegation(
+        self: @TContractState, pool_id: felt252, delegator: ContractAddress, delegatee: ContractAddress,
+    ) -> bool;
     fn modify_delegation(ref self: TContractState, pool_id: felt252, delegatee: ContractAddress, delegation: bool);
     fn modify_position(ref self: TContractState, params: ModifyPositionParamsSingletonV2) -> UpdatePositionResponse;
 }
@@ -144,6 +147,16 @@ pub mod Migrate {
             (old_ltv < ltv_max_delta || old_ltv - ltv_max_delta <= new_ltv) && new_ltv <= old_ltv + ltv_max_delta,
             "ltv-out-of-range",
         );
+    }
+
+    fn validate_ownership_v1(
+        singleton_v2: ISingletonV2Dispatcher, pool_id: felt252, user: ContractAddress, caller: ContractAddress,
+    ) {
+        assert!(user == caller || singleton_v2.delegation(pool_id, user, caller), "unauthorized-caller");
+    }
+
+    fn validate_ownership_v2(pool: IPoolDispatcher, user: ContractAddress, caller: ContractAddress) {
+        assert!(user == caller || pool.delegation(user, caller), "unauthorized-caller");
     }
 
     #[generate_trait]
@@ -426,7 +439,7 @@ pub mod Migrate {
     impl MigrateImpl of IMigrate<ContractState> {
         fn migrate_position_from_v1(ref self: ContractState, params: MigratePositionFromV1Params) {
             let MigratePositionFromV1Params {
-                from_pool_id, to_pool, collateral_asset, debt_asset, from_user, debt_to_migrate, ..,
+                from_pool_id, to_pool, collateral_asset, debt_asset, from_user, to_user, debt_to_migrate, ..,
             } = params.clone();
 
             let singleton_v2 = self.singleton_v2.read();
@@ -438,6 +451,9 @@ pub mod Migrate {
                 debt_to_migrate
             };
 
+            validate_ownership_v1(singleton_v2, from_pool_id, from_user, get_caller_address());
+            validate_ownership_v2(to_pool, to_user, get_caller_address());
+
             let migrate_action = MigrateAction::MigratePositionFromV1(params);
             let mut data: Array<felt252> = array![];
             Serde::serialize(@migrate_action, ref data);
@@ -447,7 +463,7 @@ pub mod Migrate {
 
         fn migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params) {
             let MigratePositionFromV2Params {
-                from_pool, to_pool, collateral_asset, debt_asset, from_user, debt_to_migrate, ..,
+                from_pool, to_pool, collateral_asset, debt_asset, from_user, to_user, debt_to_migrate, ..,
             } = params.clone();
 
             let from_pool = IPoolDispatcher { contract_address: from_pool };
@@ -458,6 +474,9 @@ pub mod Migrate {
             } else {
                 debt_to_migrate
             };
+
+            validate_ownership_v2(from_pool, from_user, get_caller_address());
+            validate_ownership_v2(to_pool, to_user, get_caller_address());
 
             let migrate_action = MigrateAction::MigratePositionFromV2(params);
             let mut data: Array<felt252> = array![];
