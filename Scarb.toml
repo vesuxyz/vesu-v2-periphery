@@ -20,6 +20,7 @@ vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "7970bda9d27e2f218
 
 [dev-dependencies]
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
+openzeppelin = "2.0.0"
 
 [tool.fmt]
 max-line-length = 120
@@ -28,7 +29,7 @@ sort-module-level-items = true
 [[tool.snforge.fork]]
 name = "Mainnet"
 url = "https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_8/rdvL5iHyAP1ZHb84DY8JR"
-block_id.number = "3494530"
+block_id.number = "3845057"
 
 [tool.voyager]
 liquidate = { path = "src/liquidate.cairo" }
