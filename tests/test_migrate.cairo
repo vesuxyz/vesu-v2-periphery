@@ -121,8 +121,17 @@ mod Test_3845057_Migrate {
         IUSDCDispatcherTrait,
     };
 
-    const COLLATERAL_AMOUNT: u256 = 10_000_000_000;
-    const DEBT_AMOUNT: u256 = 1000000000000000000; // SCALE
+    // 18 decimals (ETH)
+    const COLLATERAL_AMOUNT_18: u256 = 1000000000000000000; // 1 token (SCALE)
+    const DEBT_AMOUNT_18: u256 = 1000000000000000000; // 1 token (SCALE)
+
+    // 8 decimals (WBTC)
+    const COLLATERAL_AMOUNT_8: u256 = 10000000; // 0.1 token
+    const DEBT_AMOUNT_8: u256 = 1000000; // 0.01 token
+
+    // 6 decimals (USDC, USDT, new_usdc, legacy_usdc)
+    const COLLATERAL_AMOUNT_6: u256 = 10_000_000_000; // 10,000 tokens
+    const DEBT_AMOUNT_6: u256 = 1000_000_000; // 1,000 tokens
 
     struct TestConfig {
         migrate: IMigrateDispatcher,
@@ -264,11 +273,11 @@ mod Test_3845057_Migrate {
         );
 
         start_cheat_caller_address(new_usdc.contract_address, usdc_migrator.contract_address);
-        new_usdc.approve(usdc_migrator.contract_address, 100000_000_000);
+        new_usdc.approve(usdc_migrator.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(new_usdc.contract_address);
 
         start_cheat_caller_address(legacy_usdc.contract_address, usdc_migrator.contract_address);
-        legacy_usdc.approve(usdc_migrator.contract_address, 100000_000_000);
+        legacy_usdc.approve(usdc_migrator.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(legacy_usdc.contract_address);
 
         let pool_factory = IPoolFactoryDispatcher {
@@ -312,58 +321,62 @@ mod Test_3845057_Migrate {
         let loaded = load(usdt.contract_address, selector!("permitted_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
         start_cheat_caller_address(usdt.contract_address, minter);
-        IStarkgateERC20Dispatcher { contract_address: usdt.contract_address }.permissioned_mint(user, 100000_000_000);
         IStarkgateERC20Dispatcher { contract_address: usdt.contract_address }
-            .permissioned_mint(pool_1.curator(), 500000_000_000);
+            .permissioned_mint(user, COLLATERAL_AMOUNT_6 * 10);
         IStarkgateERC20Dispatcher { contract_address: usdt.contract_address }
-            .permissioned_mint(pool_2.curator(), 500000_000_000);
+            .permissioned_mint(pool_1.curator(), COLLATERAL_AMOUNT_6 * 50);
+        IStarkgateERC20Dispatcher { contract_address: usdt.contract_address }
+            .permissioned_mint(pool_2.curator(), COLLATERAL_AMOUNT_6 * 50);
         stop_cheat_caller_address(usdt.contract_address);
 
         let loaded = load(legacy_usdc.contract_address, selector!("permitted_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
         start_cheat_caller_address(legacy_usdc.contract_address, minter);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
-            .permissioned_mint(user, 100000_000_000);
+            .permissioned_mint(user, COLLATERAL_AMOUNT_6 * 10);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
-            .permissioned_mint(usdc_migrator.contract_address, 100000_000_000);
+            .permissioned_mint(usdc_migrator.contract_address, COLLATERAL_AMOUNT_6 * 10);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
-            .permissioned_mint(pool_1.curator(), 100000_000_000);
+            .permissioned_mint(pool_1.curator(), COLLATERAL_AMOUNT_6 * 10);
         IStarkgateERC20Dispatcher { contract_address: legacy_usdc.contract_address }
-            .permissioned_mint(pool_2.curator(), 100000_000_000);
+            .permissioned_mint(pool_2.curator(), COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(legacy_usdc.contract_address);
 
         let loaded = load(wbtc.contract_address, selector!("permitted_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
         start_cheat_caller_address(wbtc.contract_address, minter);
-        IStarkgateERC20Dispatcher { contract_address: wbtc.contract_address }.permissioned_mint(user, 100000_000_000);
         IStarkgateERC20Dispatcher { contract_address: wbtc.contract_address }
-            .permissioned_mint(pool_1.curator(), 100000_000_000);
+            .permissioned_mint(user, COLLATERAL_AMOUNT_8 * 10000);
         IStarkgateERC20Dispatcher { contract_address: wbtc.contract_address }
-            .permissioned_mint(pool_2.curator(), 100000_000_000);
+            .permissioned_mint(pool_1.curator(), COLLATERAL_AMOUNT_8 * 10000);
+        IStarkgateERC20Dispatcher { contract_address: wbtc.contract_address }
+            .permissioned_mint(pool_2.curator(), COLLATERAL_AMOUNT_8 * 10000);
         stop_cheat_caller_address(wbtc.contract_address);
 
         let loaded = load(new_usdc.contract_address, selector!("master_minter"), 1);
         let minter: ContractAddress = (*loaded[0]).try_into().unwrap();
         start_cheat_caller_address(new_usdc.contract_address, minter);
         IUSDCDispatcher { contract_address: new_usdc.contract_address }.configure_controller(minter, minter);
-        IUSDCDispatcher { contract_address: new_usdc.contract_address }.configure_minter(10000000_000_000);
-        IUSDCDispatcher { contract_address: new_usdc.contract_address }.mint(user, 100000_000_000);
+        IUSDCDispatcher { contract_address: new_usdc.contract_address }.configure_minter(COLLATERAL_AMOUNT_6 * 1000);
+        IUSDCDispatcher { contract_address: new_usdc.contract_address }.mint(user, COLLATERAL_AMOUNT_6 * 10);
         IUSDCDispatcher { contract_address: new_usdc.contract_address }
-            .mint(usdc_migrator.contract_address, 100000_000_000);
-        IUSDCDispatcher { contract_address: new_usdc.contract_address }.mint(pool_1.curator(), 500000_000_000);
-        IUSDCDispatcher { contract_address: new_usdc.contract_address }.mint(pool_2.curator(), 500000_000_000);
+            .mint(usdc_migrator.contract_address, COLLATERAL_AMOUNT_6 * 10);
+        IUSDCDispatcher { contract_address: new_usdc.contract_address }
+            .mint(pool_1.curator(), COLLATERAL_AMOUNT_6 * 50);
+        IUSDCDispatcher { contract_address: new_usdc.contract_address }
+            .mint(pool_2.curator(), COLLATERAL_AMOUNT_6 * 50);
         stop_cheat_caller_address(new_usdc.contract_address);
 
         start_cheat_caller_address(legacy_usdc.contract_address, pool_2.curator());
-        legacy_usdc.approve(pool_2.contract_address, 100000_000_000);
+        legacy_usdc.approve(pool_2.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(legacy_usdc.contract_address);
         start_cheat_caller_address(usdt.contract_address, pool_2.curator());
-        usdt.approve(pool_2.contract_address, 100000_000_000);
+        usdt.approve(pool_2.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(usdt.contract_address);
 
         start_cheat_caller_address(pool_2.contract_address, pool_2.curator());
-        pool_2.donate_to_reserve(legacy_usdc.contract_address, 100000_000_000);
-        pool_2.donate_to_reserve(usdt.contract_address, 100000_000_000);
+        pool_2.donate_to_reserve(legacy_usdc.contract_address, COLLATERAL_AMOUNT_6 * 10);
+        pool_2.donate_to_reserve(usdt.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(pool_2.contract_address);
 
         let asset_config = pool_2.asset_config(legacy_usdc.contract_address);
@@ -377,7 +390,7 @@ mod Test_3845057_Migrate {
         stop_cheat_caller_address(pool_2.contract_address);
 
         start_cheat_caller_address(new_usdc.contract_address, pool_2.curator());
-        new_usdc.approve(pool_factory.contract_address, 100000_000_000.into());
+        new_usdc.approve(pool_factory.contract_address, (COLLATERAL_AMOUNT_6 * 10).into());
         stop_cheat_caller_address(new_usdc.contract_address);
 
         let oracle = IPragmaOracleDispatcher { contract_address: pool_2.oracle() };
@@ -410,11 +423,11 @@ mod Test_3845057_Migrate {
         stop_cheat_caller_address(pool_2.contract_address);
 
         start_cheat_caller_address(new_usdc.contract_address, pool_2.curator());
-        new_usdc.approve(pool_2.contract_address, 100000_000_000);
+        new_usdc.approve(pool_2.contract_address, COLLATERAL_AMOUNT_6 * 10);
         stop_cheat_caller_address(new_usdc.contract_address);
 
         start_cheat_caller_address(wbtc.contract_address, pool_2.curator());
-        wbtc.approve(pool_2.contract_address, 1_000_000_00);
+        wbtc.approve(pool_2.contract_address, COLLATERAL_AMOUNT_8 * 100);
         stop_cheat_caller_address(wbtc.contract_address);
 
         start_cheat_caller_address(pool_1.contract_address, pool_1.curator());
@@ -422,8 +435,8 @@ mod Test_3845057_Migrate {
         stop_cheat_caller_address(pool_1.contract_address);
 
         start_cheat_caller_address(pool_2.contract_address, pool_2.curator());
-        pool_2.donate_to_reserve(new_usdc.contract_address, 100000_000_000);
-        pool_2.donate_to_reserve(wbtc.contract_address, 1_000_000_00);
+        pool_2.donate_to_reserve(new_usdc.contract_address, COLLATERAL_AMOUNT_6 * 10);
+        pool_2.donate_to_reserve(wbtc.contract_address, COLLATERAL_AMOUNT_8 * 100);
         pool_2.set_pair_parameter(new_usdc.contract_address, eth.contract_address, 'max_ltv', SCALE_128);
         pool_2.set_pair_parameter(eth.contract_address, new_usdc.contract_address, 'max_ltv', SCALE_128);
         pool_2.set_pair_parameter(new_usdc.contract_address, wbtc.contract_address, 'max_ltv', SCALE_128);
@@ -442,10 +455,16 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1() {
         let TestConfig { pool_2, migrate, eth, usdt, user, singleton_v2, pool_id, .. } = setup();
 
-        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT.into());
+        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v1(
-            singleton_v2, pool_id, usdt.contract_address, eth.contract_address, user, COLLATERAL_AMOUNT, DEBT_AMOUNT,
+            singleton_v2,
+            pool_id,
+            usdt.contract_address,
+            eth.contract_address,
+            user,
+            COLLATERAL_AMOUNT_6,
+            DEBT_AMOUNT_18,
         );
 
         assert_position_v1(
@@ -454,8 +473,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            DEBT_AMOUNT.into() + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_18.into() + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -470,8 +489,8 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: DEBT_AMOUNT.into() / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -483,8 +502,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 2,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 2,
         );
 
         assert_position_v2(
@@ -492,8 +511,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 1,
         );
 
         migrate
@@ -519,8 +538,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 2,
-            DEBT_AMOUNT.into() + 4,
+            COLLATERAL_AMOUNT_6.into() - 2,
+            DEBT_AMOUNT_18.into() + 4,
         );
     }
 
@@ -530,10 +549,16 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1_unauthorized_caller() {
         let TestConfig { pool_2, migrate, eth, usdt, user, singleton_v2, pool_id, .. } = setup();
 
-        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT.into());
+        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v1(
-            singleton_v2, pool_id, usdt.contract_address, eth.contract_address, user, COLLATERAL_AMOUNT, DEBT_AMOUNT,
+            singleton_v2,
+            pool_id,
+            usdt.contract_address,
+            eth.contract_address,
+            user,
+            COLLATERAL_AMOUNT_6,
+            DEBT_AMOUNT_18,
         );
 
         assert_position_v1(
@@ -542,8 +567,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            DEBT_AMOUNT.into() + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_18.into() + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -559,8 +584,8 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: DEBT_AMOUNT.into() / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -571,10 +596,16 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1_no_debt_to_debt_position() {
         let TestConfig { pool_2, migrate, eth, usdt, user, singleton_v2, pool_id, .. } = setup();
 
-        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT.into());
+        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v1(
-            singleton_v2, pool_id, usdt.contract_address, eth.contract_address, user, COLLATERAL_AMOUNT, DEBT_AMOUNT,
+            singleton_v2,
+            pool_id,
+            usdt.contract_address,
+            eth.contract_address,
+            user,
+            COLLATERAL_AMOUNT_6,
+            DEBT_AMOUNT_18,
         );
 
         assert_position_v1(
@@ -583,8 +614,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            DEBT_AMOUNT.into() + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_18.into() + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -599,8 +630,8 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: DEBT_AMOUNT.into() / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -612,8 +643,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 2,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 2,
         );
 
         assert_position_v2(
@@ -621,8 +652,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 1,
         );
 
         eth.approve(singleton_v2.contract_address, SCALE.into());
@@ -646,7 +677,7 @@ mod Test_3845057_Migrate {
             );
 
         let (_, collateral, debt) = singleton_v2.position(pool_id, usdt.contract_address, eth.contract_address, user);
-        assert!(collateral == 5000_000_000 - 1);
+        assert!(collateral == COLLATERAL_AMOUNT_6 / 2 - 1);
         assert!(debt == 0);
 
         migrate
@@ -670,8 +701,8 @@ mod Test_3845057_Migrate {
         assert!(debt == 0);
 
         let (_, collateral, debt) = pool_2.position(usdt.contract_address, eth.contract_address, user);
-        assert!(collateral == 10000_000_000 - 2);
-        assert!(debt == SCALE / 2 + 1);
+        assert!(collateral == COLLATERAL_AMOUNT_6 - 2);
+        assert!(debt == DEBT_AMOUNT_18 / 2 + 1);
     }
     #[test]
     #[should_panic(expected: "ltv-out-of-range")]
@@ -679,10 +710,16 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1_ltv_out_of_range() {
         let TestConfig { pool_2, migrate, eth, usdt, user, singleton_v2, pool_id, .. } = setup();
 
-        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT.into());
+        usdt.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v1(
-            singleton_v2, pool_id, usdt.contract_address, eth.contract_address, user, COLLATERAL_AMOUNT, DEBT_AMOUNT,
+            singleton_v2,
+            pool_id,
+            usdt.contract_address,
+            eth.contract_address,
+            user,
+            COLLATERAL_AMOUNT_6,
+            DEBT_AMOUNT_18,
         );
 
         assert_position_v1(
@@ -691,8 +728,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            DEBT_AMOUNT.into() + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_18.into() + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -707,8 +744,8 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: DEBT_AMOUNT.into() / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -720,8 +757,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 2,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 2,
         );
 
         assert_position_v2(
@@ -729,8 +766,8 @@ mod Test_3845057_Migrate {
             usdt.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 1,
         );
 
         migrate
@@ -742,7 +779,7 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 4,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 4,
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000000,
@@ -755,7 +792,7 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1_legacy_usdc_to_new_usdc_collateral_asset() {
         let TestConfig { pool_2, migrate, eth, legacy_usdc, new_usdc, user, singleton_v2, pool_id, .. } = setup();
 
-        legacy_usdc.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT.into());
+        legacy_usdc.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v1(
             singleton_v2,
@@ -763,8 +800,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT,
-            DEBT_AMOUNT,
+            COLLATERAL_AMOUNT_6,
+            DEBT_AMOUNT_18,
         );
 
         assert_position_v1(
@@ -773,8 +810,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            DEBT_AMOUNT.into() + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_18.into() + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -789,8 +826,8 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: DEBT_AMOUNT.into() / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -802,8 +839,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 2,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 2,
         );
 
         assert_position_v2(
@@ -811,8 +848,8 @@ mod Test_3845057_Migrate {
             new_usdc.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            DEBT_AMOUNT.into() / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_18.into() / 2 + 1,
         );
 
         migrate
@@ -838,8 +875,8 @@ mod Test_3845057_Migrate {
             new_usdc.contract_address,
             eth.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 2,
-            DEBT_AMOUNT.into() + 4,
+            COLLATERAL_AMOUNT_6.into() - 2,
+            DEBT_AMOUNT_18.into() + 4,
         );
     }
 
@@ -848,10 +885,16 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v1_legacy_usdc_to_new_usdc_debt_asset() {
         let TestConfig { pool_2, migrate, eth, legacy_usdc, new_usdc, user, singleton_v2, pool_id, .. } = setup();
 
-        eth.approve(singleton_v2.contract_address, DEBT_AMOUNT.into());
+        eth.approve(singleton_v2.contract_address, COLLATERAL_AMOUNT_18.into());
 
         create_position_v1(
-            singleton_v2, pool_id, eth.contract_address, legacy_usdc.contract_address, user, DEBT_AMOUNT, 1000_000_000,
+            singleton_v2,
+            pool_id,
+            eth.contract_address,
+            legacy_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_18,
+            DEBT_AMOUNT_6,
         );
 
         assert_position_v1(
@@ -860,8 +903,8 @@ mod Test_3845057_Migrate {
             eth.contract_address,
             legacy_usdc.contract_address,
             user,
-            DEBT_AMOUNT.into() - 1,
-            1000_000_000 + 1,
+            COLLATERAL_AMOUNT_18.into() - 1,
+            DEBT_AMOUNT_6 + 1,
         );
 
         singleton_v2.modify_delegation(pool_id, migrate.contract_address, true);
@@ -876,8 +919,8 @@ mod Test_3845057_Migrate {
                     debt_asset: legacy_usdc.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: DEBT_AMOUNT.into() / 2,
-                    debt_to_migrate: 500_000_000,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_18.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_6 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -889,12 +932,17 @@ mod Test_3845057_Migrate {
             eth.contract_address,
             legacy_usdc.contract_address,
             user,
-            DEBT_AMOUNT.into() / 2 - 1,
-            500_000_000 + 1,
+            COLLATERAL_AMOUNT_18.into() / 2 - 1,
+            DEBT_AMOUNT_6 / 2 + 1,
         );
 
         assert_position_v2(
-            pool_2, eth.contract_address, new_usdc.contract_address, user, DEBT_AMOUNT.into() / 2 - 1, 500_000_000,
+            pool_2,
+            eth.contract_address,
+            new_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_18.into() / 2 - 1,
+            DEBT_AMOUNT_6 / 2,
         );
 
         migrate
@@ -916,7 +964,12 @@ mod Test_3845057_Migrate {
         assert_position_v1(singleton_v2, pool_id, eth.contract_address, legacy_usdc.contract_address, user, 0, 0);
 
         assert_position_v2(
-            pool_2, eth.contract_address, new_usdc.contract_address, user, DEBT_AMOUNT.into() - 3, 1000_000_000 + 1,
+            pool_2,
+            eth.contract_address,
+            new_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_18.into() - 3,
+            DEBT_AMOUNT_6 + 1,
         );
     }
 
@@ -926,10 +979,10 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v2_unauthorized_caller() {
         let TestConfig { pool_1, pool_2, migrate, wbtc, legacy_usdc, user, .. } = setup();
 
-        legacy_usdc.approve(pool_1.contract_address, COLLATERAL_AMOUNT.into());
+        legacy_usdc.approve(pool_1.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v2(
-            pool_1, legacy_usdc.contract_address, wbtc.contract_address, user, COLLATERAL_AMOUNT, 1000000,
+            pool_1, legacy_usdc.contract_address, wbtc.contract_address, user, COLLATERAL_AMOUNT_6, DEBT_AMOUNT_8,
         );
 
         assert_position_v2(
@@ -937,8 +990,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             wbtc.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            1000000 + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_8 + 1,
         );
 
         pool_1.modify_delegation(migrate.contract_address, true);
@@ -953,8 +1006,8 @@ mod Test_3845057_Migrate {
                     debt_asset: wbtc.contract_address,
                     from_user: wbtc.contract_address,
                     to_user: user,
-                    collateral_to_migrate: 5000_000_000,
-                    debt_to_migrate: 1000000 / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6 / 2,
+                    debt_to_migrate: DEBT_AMOUNT_8 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -966,10 +1019,10 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v2_legacy_usdc_to_new_usdc_collateral_asset() {
         let TestConfig { pool_1, pool_2, migrate, wbtc, legacy_usdc, new_usdc, user, .. } = setup();
 
-        legacy_usdc.approve(pool_1.contract_address, COLLATERAL_AMOUNT.into());
+        legacy_usdc.approve(pool_1.contract_address, COLLATERAL_AMOUNT_6.into());
 
         create_position_v2(
-            pool_1, legacy_usdc.contract_address, wbtc.contract_address, user, COLLATERAL_AMOUNT, 1000000,
+            pool_1, legacy_usdc.contract_address, wbtc.contract_address, user, COLLATERAL_AMOUNT_6, DEBT_AMOUNT_8,
         );
 
         assert_position_v2(
@@ -977,8 +1030,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             wbtc.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() - 1,
-            1000000 + 1,
+            COLLATERAL_AMOUNT_6.into() - 1,
+            DEBT_AMOUNT_8 + 1,
         );
 
         pool_1.modify_delegation(migrate.contract_address, true);
@@ -993,8 +1046,8 @@ mod Test_3845057_Migrate {
                     debt_asset: wbtc.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 2,
-                    debt_to_migrate: 1000000 / 2,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_6.into() / 2,
+                    debt_to_migrate: DEBT_AMOUNT_8 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
@@ -1005,8 +1058,8 @@ mod Test_3845057_Migrate {
             legacy_usdc.contract_address,
             wbtc.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            1000000 / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_8 / 2 + 1,
         );
 
         assert_position_v2(
@@ -1014,8 +1067,8 @@ mod Test_3845057_Migrate {
             new_usdc.contract_address,
             wbtc.contract_address,
             user,
-            COLLATERAL_AMOUNT.into() / 2 - 1,
-            1000000 / 2 + 1,
+            COLLATERAL_AMOUNT_6.into() / 2 - 1,
+            DEBT_AMOUNT_8 / 2 + 1,
         );
 
         migrate
@@ -1037,7 +1090,12 @@ mod Test_3845057_Migrate {
         assert_position_v2(pool_1, legacy_usdc.contract_address, wbtc.contract_address, user, 0, 0);
 
         assert_position_v2(
-            pool_2, new_usdc.contract_address, wbtc.contract_address, user, COLLATERAL_AMOUNT.into() - 2, 1000000 + 2,
+            pool_2,
+            new_usdc.contract_address,
+            wbtc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_6.into() - 2,
+            DEBT_AMOUNT_8 + 2,
         );
     }
 
@@ -1046,12 +1104,14 @@ mod Test_3845057_Migrate {
     fn test_migrate_position_from_v2_legacy_usdc_to_new_usdc_debt_asset() {
         let TestConfig { pool_1, pool_2, migrate, wbtc, legacy_usdc, new_usdc, user, .. } = setup();
 
-        wbtc.approve(pool_1.contract_address, 10000000.into());
+        wbtc.approve(pool_1.contract_address, COLLATERAL_AMOUNT_8.into());
 
-        create_position_v2(pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, 10000000, 1000_000_000);
+        create_position_v2(
+            pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, COLLATERAL_AMOUNT_8, DEBT_AMOUNT_6,
+        );
 
         assert_position_v2(
-            pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, 10000000, 1000_000_000 + 1,
+            pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, COLLATERAL_AMOUNT_8, DEBT_AMOUNT_6 + 1,
         );
 
         pool_1.modify_delegation(migrate.contract_address, true);
@@ -1066,16 +1126,30 @@ mod Test_3845057_Migrate {
                     debt_asset: legacy_usdc.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: 5000000,
-                    debt_to_migrate: 500_000_000,
+                    collateral_to_migrate: COLLATERAL_AMOUNT_8 / 2,
+                    debt_to_migrate: DEBT_AMOUNT_6 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
                 },
             );
 
-        assert_position_v2(pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, 5000000, 500_000_000 + 1);
+        assert_position_v2(
+            pool_1,
+            wbtc.contract_address,
+            legacy_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_8 / 2,
+            DEBT_AMOUNT_6 / 2 + 1,
+        );
 
-        assert_position_v2(pool_2, wbtc.contract_address, new_usdc.contract_address, user, 5000000 - 1, 500_000_000);
+        assert_position_v2(
+            pool_2,
+            wbtc.contract_address,
+            new_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_8 / 2 - 1,
+            DEBT_AMOUNT_6 / 2,
+        );
 
         migrate
             .migrate_position_from_v2(
@@ -1096,7 +1170,7 @@ mod Test_3845057_Migrate {
         assert_position_v2(pool_1, wbtc.contract_address, legacy_usdc.contract_address, user, 0, 0);
 
         assert_position_v2(
-            pool_2, wbtc.contract_address, new_usdc.contract_address, user, 10000000 - 1, 1000_000_000 + 1,
+            pool_2, wbtc.contract_address, new_usdc.contract_address, user, COLLATERAL_AMOUNT_8 - 1, DEBT_AMOUNT_6 + 1,
         );
     }
 
@@ -1106,12 +1180,19 @@ mod Test_3845057_Migrate {
     fn test_migrate_reentrant_call() {
         let TestConfig { pool_2, migrate, eth, legacy_usdc, user, .. } = setup();
 
-        eth.approve(pool_2.contract_address, DEBT_AMOUNT.into());
+        eth.approve(pool_2.contract_address, COLLATERAL_AMOUNT_18.into());
 
-        create_position_v2(pool_2, eth.contract_address, legacy_usdc.contract_address, user, DEBT_AMOUNT, 1000_000_000);
+        create_position_v2(
+            pool_2, eth.contract_address, legacy_usdc.contract_address, user, COLLATERAL_AMOUNT_18, DEBT_AMOUNT_6,
+        );
 
         assert_position_v2(
-            pool_2, eth.contract_address, legacy_usdc.contract_address, user, DEBT_AMOUNT.into() - 1, 1000_000_000 + 1,
+            pool_2,
+            eth.contract_address,
+            legacy_usdc.contract_address,
+            user,
+            COLLATERAL_AMOUNT_18.into() - 1,
+            DEBT_AMOUNT_6 + 1,
         );
 
         pool_2.modify_delegation(migrate.contract_address, true);
