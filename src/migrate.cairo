@@ -143,10 +143,7 @@ pub mod Migrate {
     }
 
     fn validate_ltv_range(old_ltv: u256, new_ltv: u256, ltv_max_delta: u256) {
-        assert!(
-            (old_ltv < ltv_max_delta || old_ltv - ltv_max_delta <= new_ltv) && new_ltv <= old_ltv + ltv_max_delta,
-            "ltv-out-of-range",
-        );
+        assert!(new_ltv <= old_ltv + ltv_max_delta, "ltv-out-of-range");
     }
 
     fn validate_ownership_v1(

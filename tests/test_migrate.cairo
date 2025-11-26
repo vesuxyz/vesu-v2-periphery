@@ -742,7 +742,7 @@ mod Test_3845057_Migrate {
                     debt_asset: eth.contract_address,
                     from_user: user,
                     to_user: user,
-                    collateral_to_migrate: 0,
+                    collateral_to_migrate: COLLATERAL_AMOUNT.into() / 4,
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000000,
