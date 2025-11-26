@@ -98,7 +98,7 @@ trait IUSDC<TContractState> {
 }
 
 #[cfg(test)]
-mod Test_3494530_Migrate {
+mod Test_3845057_Migrate {
     use alexandria_math::i257::I257Trait;
     use ekubo::interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
     use openzeppelin::token::erc20::interface::{IERC20MetadataDispatcher, IERC20MetadataDispatcherTrait};
@@ -106,15 +106,11 @@ mod Test_3494530_Migrate {
     #[feature("deprecated-starknet-consts")]
     use starknet::{ContractAddress, contract_address_const, get_contract_address};
     use vesu::data_model::{Amount, AmountDenomination, AssetParams, ModifyPositionParams, VTokenParams};
-    use vesu::interest_rate_model::InterestRateConfig;
-    use vesu::oracle::{
-        IOracleDispatcher, IOracleDispatcherTrait, IPragmaOracleDispatcher, IPragmaOracleDispatcherTrait,
-    };
+    use vesu::oracle::{IPragmaOracleDispatcher, IPragmaOracleDispatcherTrait};
     use vesu::pool::{IPoolDispatcher, IPoolDispatcherTrait};
     use vesu::pool_factory::{IPoolFactoryDispatcher, IPoolFactoryDispatcherTrait};
     use vesu::test::setup_v2::deploy_with_args;
     use vesu::units::{SCALE, SCALE_128};
-    use vesu::v_token::{IVTokenDispatcher, IVTokenDispatcherTrait};
     use vesu_v2_periphery::migrate::{
         AmountSingletonV2, AmountType, IMigrateDispatcher, IMigrateDispatcherTrait, ISingletonV2Dispatcher,
         ISingletonV2DispatcherTrait, ITokenMigrationDispatcher, MigratePositionFromV1Params,

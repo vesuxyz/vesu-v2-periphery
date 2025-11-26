@@ -33,11 +33,12 @@ block_id.number = "3845057"
 
 [tool.voyager]
 liquidate = { path = "src/liquidate.cairo" }
+migrate = { path = "src/migrate.cairo" }
 multiply = { path = "src/multiply.cairo" }
 
 [scripts]
 buildRelease = "scarb --profile release build"
-deployMigrate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMigrate.ts"
-deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
-test = "snforge test --max-n-steps 100000000"
+deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
+deployMigrate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMigrate.ts"
+test = "snforge test --max-n-steps 100000000 'test_migrate'"

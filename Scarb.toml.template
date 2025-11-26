@@ -20,6 +20,7 @@ vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "7970bda9d27e2f218
 
 [dev-dependencies]
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
+openzeppelin = "2.0.0"
 
 [tool.fmt]
 max-line-length = 120
@@ -32,10 +33,12 @@ block_id.number = "BLOCK_NUMBER"
 
 [tool.voyager]
 liquidate = { path = "src/liquidate.cairo" }
+migrate = { path = "src/migrate.cairo" }
 multiply = { path = "src/multiply.cairo" }
 
 [scripts]
 buildRelease = "scarb --profile release build"
-deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
+deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
+deployMigrate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMigrate.ts"
 test = "snforge test --max-n-steps 100000000"
