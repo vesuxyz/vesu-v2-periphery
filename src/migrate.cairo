@@ -128,6 +128,46 @@ pub mod Migrate {
         migrator: ITokenMigrationDispatcher,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct MigratePositionFromV1 {
+        #[key]
+        from_pool_id: felt252,
+        #[key]
+        to_pool: ContractAddress,
+        #[key]
+        collateral_asset: ContractAddress,
+        #[key]
+        debt_asset: ContractAddress,
+        #[key]
+        from_user: ContractAddress,
+        #[key]
+        to_user: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct MigratePositionFromV2 {
+        #[key]
+        from_pool: ContractAddress,
+        #[key]
+        to_pool: ContractAddress,
+        #[key]
+        collateral_asset: ContractAddress,
+        #[key]
+        debt_asset: ContractAddress,
+        #[key]
+        from_user: ContractAddress,
+        #[key]
+        to_user: ContractAddress,
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        MigratePositionFromV1: MigratePositionFromV1,
+        MigratePositionFromV2: MigratePositionFromV2,
+    }
+
+
     #[constructor]
     fn constructor(ref self: ContractState, singleton_v2: ISingletonV2Dispatcher, migrator: ITokenMigrationDispatcher) {
         self.singleton_v2.write(singleton_v2);
@@ -456,6 +496,18 @@ pub mod Migrate {
             Serde::serialize(@migrate_action, ref data);
 
             self.call_flash_loan(pool: to_pool, asset: debt_asset, amount: debt, data: data.span());
+
+            self
+                .emit(
+                    MigratePositionFromV1 {
+                        from_pool_id,
+                        to_pool: to_pool.contract_address,
+                        collateral_asset,
+                        debt_asset,
+                        from_user,
+                        to_user,
+                    },
+                );
         }
 
         fn migrate_position_from_v2(ref self: ContractState, params: MigratePositionFromV2Params) {
@@ -480,6 +532,18 @@ pub mod Migrate {
             Serde::serialize(@migrate_action, ref data);
 
             self.call_flash_loan(pool: to_pool, asset: debt_asset, amount: debt, data: data.span());
+
+            self
+                .emit(
+                    MigratePositionFromV2 {
+                        from_pool: from_pool.contract_address,
+                        to_pool: to_pool.contract_address,
+                        collateral_asset,
+                        debt_asset,
+                        from_user,
+                        to_user,
+                    },
+                );
         }
     }
 }
