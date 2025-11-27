@@ -81,6 +81,7 @@ pub mod ReentrantPool {
                                 debt_to_migrate: params.debt_to_migrate,
                                 from_ltv_max_delta: params.from_ltv_max_delta,
                                 from_to_max_ltv_delta: params.from_to_max_ltv_delta,
+                                emit_multiply_event: false,
                             },
                         );
                 },
@@ -493,6 +494,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -528,6 +530,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -588,6 +591,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
     }
@@ -634,6 +638,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -693,6 +698,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -748,6 +754,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -783,6 +790,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000000,
+                    emit_multiply_event: false,
                 },
             );
     }
@@ -830,6 +838,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_18.into() / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -865,6 +874,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -923,6 +933,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_6 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -958,6 +969,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -1010,6 +1022,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_8 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
     }
@@ -1050,6 +1063,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_8 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -1084,6 +1098,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -1130,6 +1145,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: DEBT_AMOUNT_6 / 2,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -1164,6 +1180,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: SCALE,
                     from_to_max_ltv_delta: SCALE / 1000,
+                    emit_multiply_event: false,
                 },
             );
 
@@ -1216,6 +1233,7 @@ mod Test_3845057_Migrate {
                     debt_to_migrate: 0,
                     from_ltv_max_delta: 0,
                     from_to_max_ltv_delta: 0,
+                    emit_multiply_event: false,
                 },
             );
     }

@@ -76,6 +76,7 @@ pub struct MigratePositionFromV1Params {
     pub debt_to_migrate: u256,
     pub from_ltv_max_delta: u256,
     pub from_to_max_ltv_delta: u256,
+    pub emit_multiply_event: bool,
 }
 
 #[derive(Serde, Drop, Clone)]
@@ -90,6 +91,7 @@ pub struct MigratePositionFromV2Params {
     pub debt_to_migrate: u256,
     pub from_ltv_max_delta: u256,
     pub from_to_max_ltv_delta: u256,
+    pub emit_multiply_event: bool,
 }
 
 #[derive(Serde, Drop, Clone)]
@@ -158,11 +160,27 @@ pub mod Migrate {
         to_user: ContractAddress,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct IncreaseLever {
+        #[key]
+        pool: ContractAddress,
+        #[key]
+        collateral_asset: ContractAddress,
+        #[key]
+        debt_asset: ContractAddress,
+        #[key]
+        user: ContractAddress,
+        margin: u256,
+        collateral_delta: u256,
+        debt_delta: u256,
+    }
+
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
         MigratePositionFromV1: MigratePositionFromV1,
         MigratePositionFromV2: MigratePositionFromV2,
+        IncreaseLever: IncreaseLever,
     }
 
 
@@ -220,6 +238,7 @@ pub mod Migrate {
                 debt_to_migrate,
                 from_ltv_max_delta,
                 from_to_max_ltv_delta,
+                emit_multiply_event,
             } = params;
 
             let to_pool = IPoolDispatcher { contract_address: to_pool };
@@ -290,6 +309,7 @@ pub mod Migrate {
                     debt_delta.abs(),
                     from_ltv,
                     from_to_max_ltv_delta,
+                    emit_multiply_event,
                 );
         }
 
@@ -305,6 +325,7 @@ pub mod Migrate {
                 debt_to_migrate,
                 from_ltv_max_delta,
                 from_to_max_ltv_delta,
+                emit_multiply_event,
             } = params;
 
             let from_pool = IPoolDispatcher { contract_address: from_pool };
@@ -370,6 +391,7 @@ pub mod Migrate {
                     debt_delta.abs(),
                     from_ltv,
                     from_to_max_ltv_delta,
+                    emit_multiply_event,
                 );
         }
 
@@ -383,6 +405,7 @@ pub mod Migrate {
             debt_delta: u256,
             from_ltv: u256,
             from_to_max_ltv_delta: u256,
+            emit_multiply_event: bool,
         ) {
             let migrator = self.migrator.read();
             let legacy_token = migrator.get_legacy_token();
@@ -444,6 +467,21 @@ pub mod Migrate {
                 );
                 // assume swap amounts are 1:1
                 migrator.swap_to_legacy(debt_delta);
+            }
+
+            if emit_multiply_event {
+                self
+                    .emit(
+                        IncreaseLever {
+                            pool: to_pool.contract_address,
+                            collateral_asset,
+                            debt_asset,
+                            user: to_user,
+                            margin: 0.into(),
+                            collateral_delta: collateral_delta,
+                            debt_delta: debt_delta,
+                        },
+                    );
             }
         }
     }
