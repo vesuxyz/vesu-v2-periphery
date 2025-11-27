@@ -16,7 +16,7 @@ build-external-contracts = ["vesu::test::mock_oracle::MockPragmaOracle"]
 starknet = "2.11.4"
 alexandria_math = { git = "https://github.com/keep-starknet-strange/alexandria.git", rev = "c804e98" }
 ekubo = { git = "https://github.com/EkuboProtocol/abis", commit = "f4a16b95967c5596d5a3cd4e0422bb9a2e3eb017" }
-vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "7970bda9d27e2f21823148be81b3158c0546a9d3" }
+vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "8cded3b9ac6101538255cfbf91b9ba46dd534d96" }
 
 [dev-dependencies]
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
