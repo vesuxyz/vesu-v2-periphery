@@ -123,8 +123,6 @@ pub mod Migrate {
     struct Storage {
         singleton_v2: ISingletonV2Dispatcher,
         pool: ContractAddress,
-        usdc_e: ContractAddress,
-        usdc: ContractAddress,
         migrator: ITokenMigrationDispatcher,
     }
 
@@ -178,6 +176,7 @@ pub mod Migrate {
         if debt_value == 0 {
             0
         } else {
+            // Note: collateral value is always greater than 0
             debt_value * SCALE / collateral_value
         }
     }
@@ -461,14 +460,16 @@ pub mod Migrate {
             assert!(get_caller_address() == self.pool.read(), "caller-not-pool");
             assert!(sender == get_contract_address(), "unknown-sender");
 
-            let migrate_action: MigrateAction = Serde::deserialize(ref data).unwrap();
+            let migrate_action: MigrateAction = Serde::deserialize(ref data).expect('invalid-migrate-action-data');
 
             match migrate_action {
                 MigrateAction::MigratePositionFromV1(params) => self._migrate_position_from_v1(params, amount),
                 MigrateAction::MigratePositionFromV2(params) => self._migrate_position_from_v2(params, amount),
             }
 
-            IERC20Dispatcher { contract_address: asset }.approve(get_caller_address(), amount);
+            assert!(
+                IERC20Dispatcher { contract_address: asset }.approve(get_caller_address(), amount), "approve-failed",
+            );
         }
     }
 
