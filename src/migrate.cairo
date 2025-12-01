@@ -102,6 +102,8 @@ pub enum MigrateAction {
 
 #[starknet::interface]
 pub trait IMigrate<TContractState> {
+    fn singleton_v2(self: @TContractState) -> ContractAddress;
+    fn migrator(self: @TContractState) -> ContractAddress;
     fn migrate_position_from_v1(ref self: TContractState, params: MigratePositionFromV1Params);
     fn migrate_position_from_v2(ref self: TContractState, params: MigratePositionFromV2Params);
 }
@@ -513,6 +515,14 @@ pub mod Migrate {
 
     #[abi(embed_v0)]
     impl MigrateImpl of IMigrate<ContractState> {
+        fn singleton_v2(self: @ContractState) -> ContractAddress {
+            self.singleton_v2.read().contract_address
+        }
+
+        fn migrator(self: @ContractState) -> ContractAddress {
+            self.migrator.read().contract_address
+        }
+
         fn migrate_position_from_v1(ref self: ContractState, params: MigratePositionFromV1Params) {
             let MigratePositionFromV1Params {
                 from_pool_id, to_pool, collateral_asset, debt_asset, from_user, to_user, debt_to_migrate, ..,

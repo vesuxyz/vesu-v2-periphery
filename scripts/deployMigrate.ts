@@ -7,7 +7,7 @@ const [migrate, calls] = await deployer.deferContract(
   "Migrate",
   CallData.compile({
     singleton_v2: "0x000d8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160"!,
-    migrator: "0x06D4A1EC34c85b6129Ed433C46accfbE8B4B1225A3401C2767ea1060Ded208e7"!
+    migrator: "0x07bffc7f6bda62b7bee9b7880579633a38f7ef910e0ad5e686b0b8712e216a19"!
   }),
 );
 
