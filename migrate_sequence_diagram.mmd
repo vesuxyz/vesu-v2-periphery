@@ -1,0 +1,185 @@
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#e8f5e9','primaryTextColor':'#1b5e20','primaryBorderColor':'#4caf50','lineColor':'#2196f3','secondaryColor':'#fff3e0','tertiaryColor':'#f3e5f5','noteBkgColor':'#fff9c4','noteTextColor':'#333','actorBorder':'#1976d2','actorBkg':'#bbdefb','actorTextColor':'#0d47a1','actorLineColor':'#1976d2','signalColor':'#424242','signalTextColor':'#212121','labelBoxBkgColor':'#e3f2fd','labelBoxBorderColor':'#1976d2','labelTextColor':'#0d47a1','loopTextColor':'#0d47a1','noteBorderColor':'#f57f17','activationBorderColor':'#388e3c','activationBkgColor':'#c8e6c9','sequenceNumberColor':'white'}}}%%
+
+sequenceDiagram
+    autonumber
+
+    participant User as 👤 User
+    participant Migrate as 🔄 Migrate Contract
+    participant SingletonV2 as 📦 Singleton V2<br/>(Vesu V1)
+    participant SourcePool as 🏦 Source Pool<br/>(V2)
+    participant TargetPool as 🎯 Target Pool<br/>(V2)
+    participant Migrator as 🔀 Token Migrator
+    participant DebtToken as 💰 Debt Token<br/>(ERC20)
+    participant CollToken as 💎 Collateral Token<br/>(ERC20)
+
+    rect rgb(230, 255, 230)
+        note over User,CollToken: Migration Flow from V1 to V2
+
+        User->>+Migrate: migrate_position_from_v1(params)
+        note right of Migrate: params: from_pool_id, to_pool,<br/>collateral/debt assets, from/to users,<br/>amounts, max_ltv_delta
+
+        Migrate->>+SingletonV2: position(from_pool_id, assets, user)
+        SingletonV2-->>-Migrate: (position, collateral, debt)
+        note right of Migrate: Determine debt amount to migrate
+
+        Migrate->>Migrate: Serialize MigrateAction::V1
+        Migrate->>+TargetPool: flash_loan(Migrate, debt_asset, debt, data)
+        note right of TargetPool: Borrow debt amount to repay old position
+
+        TargetPool->>TargetPool: Transfer debt tokens to Migrate
+        TargetPool->>+Migrate: on_flash_loan(TargetPool, debt_asset, amount, data)
+        note right of Migrate: Callback executed with borrowed funds
+
+        Migrate->>Migrate: Deserialize MigrateAction
+        Migrate->>Migrate: Route to _migrate_position_from_v1
+
+        Migrate->>+SingletonV2: check_collateralization(from_pool_id, assets, user)
+        SingletonV2-->>-Migrate: (bool, collateral_value, debt_value)
+        note right of Migrate: Calculate from_ltv = debt_value / collateral_value
+
+        Migrate->>+DebtToken: approve(SingletonV2, amount)
+        DebtToken-->>-Migrate: true
+
+        Migrate->>+SingletonV2: modify_position(close params)
+        note right of SingletonV2: Withdraw collateral<br/>Repay debt (fully or partially)
+        SingletonV2->>SingletonV2: Update position state
+        SingletonV2-->>-Migrate: (collateral_delta, debt_delta)
+        note right of Migrate: Verify debt_delta matches flash loan amount
+
+        Migrate->>Migrate: create_v2_position()
+
+        alt Collateral is legacy token
+            Migrate->>+Migrator: get_legacy_token()
+            Migrator-->>-Migrate: legacy_token_address
+            Migrate->>+Migrator: get_new_token()
+            Migrator-->>-Migrate: new_token_address
+
+            Migrate->>+CollToken: approve(Migrator, collateral_delta)
+            CollToken-->>-Migrate: true
+
+            Migrate->>+Migrator: swap_to_new(collateral_delta)
+            note right of Migrator: 1:1 swap legacy → new token
+            Migrator-->>-Migrate: success
+            note right of Migrate: Update collateral_asset = new_token
+        end
+
+        Migrate->>+CollToken: approve(TargetPool, collateral_delta)
+        CollToken-->>-Migrate: true
+
+        alt Debt is legacy token
+            note right of Migrate: Update debt_asset = new_token<br/>Will borrow new token and swap back
+        end
+
+        Migrate->>+TargetPool: modify_position(open params)
+        note right of TargetPool: Deposit collateral<br/>Borrow debt (new or legacy token)
+        TargetPool->>TargetPool: Create/update position
+        TargetPool-->>-Migrate: (collateral_delta, debt_delta)
+
+        Migrate->>+TargetPool: check_collateralization(assets, to_user)
+        TargetPool-->>-Migrate: (bool, collateral_value, debt_value)
+        note right of Migrate: Calculate to_ltv<br/>Verify: |to_ltv - from_ltv| ≤ max_ltv_delta
+
+        alt Debt was legacy token
+            Migrate->>+DebtToken: approve(Migrator, debt_delta)
+            DebtToken-->>-Migrate: true
+
+            Migrate->>+Migrator: swap_to_legacy(debt_delta)
+            note right of Migrator: 1:1 swap new → legacy token
+            Migrator-->>-Migrate: success
+        end
+
+        Migrate->>+DebtToken: approve(TargetPool, flash_loan_amount)
+        DebtToken-->>-Migrate: true
+
+        Migrate-->>-TargetPool: return
+        note right of TargetPool: Callback complete
+
+        TargetPool->>TargetPool: Collect flash loan repayment
+        TargetPool-->>-Migrate: success
+
+        Migrate-->>-User: Migration complete
+    end
+
+    rect rgb(255, 240, 230)
+        note over User,CollToken: Migration Flow from V2 to V2
+
+        User->>+Migrate: migrate_position_from_v2(params)
+        note right of Migrate: params: from_pool, to_pool,<br/>collateral/debt assets, from/to users,<br/>amounts, max_ltv_delta
+
+        Migrate->>+SourcePool: position(assets, from_user)
+        SourcePool-->>-Migrate: (position, collateral, debt)
+
+        Migrate->>+SourcePool: check_collateralization(assets, user)
+        SourcePool-->>-Migrate: (bool, collateral_value, debt_value)
+        note right of Migrate: Calculate from_ltv<br/>Determine debt amount to migrate
+
+        Migrate->>Migrate: Serialize MigrateAction::V2
+        Migrate->>+TargetPool: flash_loan(Migrate, debt_asset, debt, data)
+        note right of TargetPool: Borrow debt amount to repay old position
+
+        TargetPool->>TargetPool: Transfer debt tokens to Migrate
+        TargetPool->>+Migrate: on_flash_loan(TargetPool, debt_asset, amount, data)
+        note right of Migrate: Callback executed with borrowed funds
+
+        Migrate->>Migrate: Deserialize MigrateAction
+        Migrate->>Migrate: Route to _migrate_position_from_v2
+
+        Migrate->>+DebtToken: approve(SourcePool, amount)
+        DebtToken-->>-Migrate: true
+
+        Migrate->>+SourcePool: modify_position(close params)
+        note right of SourcePool: Withdraw collateral<br/>Repay debt (fully or partially)
+        SourcePool->>SourcePool: Update position state
+        SourcePool-->>-Migrate: (collateral_delta, debt_delta)
+        note right of Migrate: Verify debt_delta matches flash loan amount
+
+        Migrate->>Migrate: create_v2_position()
+
+        alt Collateral is legacy token
+            Migrate->>+Migrator: get_legacy_token() & get_new_token()
+            Migrator-->>-Migrate: token addresses
+
+            Migrate->>+CollToken: approve(Migrator, collateral_delta)
+            CollToken-->>-Migrate: true
+
+            Migrate->>+Migrator: swap_to_new(collateral_delta)
+            note right of Migrator: 1:1 swap legacy → new token
+            Migrator-->>-Migrate: success
+        end
+
+        Migrate->>+CollToken: approve(TargetPool, collateral_delta)
+        CollToken-->>-Migrate: true
+
+        alt Debt is legacy token
+            note right of Migrate: Update debt_asset = new_token<br/>Will borrow new token and swap back
+        end
+
+        Migrate->>+TargetPool: modify_position(open params)
+        note right of TargetPool: Deposit collateral<br/>Borrow debt
+        TargetPool->>TargetPool: Create/update position
+        TargetPool-->>-Migrate: (collateral_delta, debt_delta)
+
+        Migrate->>+TargetPool: check_collateralization(assets, to_user)
+        TargetPool-->>-Migrate: (bool, collateral_value, debt_value)
+        note right of Migrate: Calculate to_ltv<br/>Verify: |to_ltv - from_ltv| ≤ max_ltv_delta
+
+        alt Debt was legacy token
+            Migrate->>+DebtToken: approve(Migrator, debt_delta)
+            DebtToken-->>-Migrate: true
+
+            Migrate->>+Migrator: swap_to_legacy(debt_delta)
+            note right of Migrator: 1:1 swap new → legacy token
+            Migrator-->>-Migrate: success
+        end
+
+        Migrate->>+DebtToken: approve(TargetPool, flash_loan_amount)
+        DebtToken-->>-Migrate: true
+
+        Migrate-->>-TargetPool: return
+        note right of TargetPool: Callback complete
+
+        TargetPool->>TargetPool: Collect flash loan repayment
+        TargetPool-->>-Migrate: success
+
+        Migrate-->>-User: Migration complete
+    end

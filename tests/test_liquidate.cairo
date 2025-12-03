@@ -6,7 +6,7 @@ trait IStarkgateERC20<TContractState> {
 }
 
 #[cfg(test)]
-mod Test_896150_Liquidate {
+mod Test_2386336_Liquidate {
     use alexandria_math::i257::I257Trait;
     use core::num::traits::Zero;
     use ekubo::interfaces::core::ICoreDispatcher;
@@ -459,8 +459,6 @@ mod Test_896150_Liquidate {
         let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
         assert!(collateral == params.collateral.value.abs());
         assert!(debt == params.debt.value.abs());
-        println!("collateral: {}", collateral);
-        println!("debt:       {}", debt);
 
         let mock_pragma_oracle = IMockPragmaOracleDispatcher { contract_address: deploy_contract("MockPragmaOracle") };
         mock_pragma_oracle.set_num_sources_aggregated('USDC/USD', 10);

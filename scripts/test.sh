@@ -4,16 +4,16 @@ set -o allexport
 source .env
 set +o allexport
 
-# run tests at block 896150
+# run tests at block 2386336
 sed -e "s~MAINNET_RPC_URL~$MAINNET_RPC_URL~g" \
-    -e "s~BLOCK_NUMBER~896150~g" \
+    -e "s~BLOCK_NUMBER~2386336~g" \
     Scarb.toml.template > Scarb.toml
 
-snforge test "Test_896150"
+snforge test --max-n-steps 100000000 "Test_2386336"
 
-# run tests at block 974640
+# run tests at block 3845057
 sed -e "s~MAINNET_RPC_URL~$MAINNET_RPC_URL~g" \
-    -e "s~BLOCK_NUMBER~974640~g" \
+    -e "s~BLOCK_NUMBER~3845057~g" \
     Scarb.toml.template > Scarb.toml
 
-snforge test "Test_974640"
+snforge test --max-n-steps 100000000 "Test_3845057"

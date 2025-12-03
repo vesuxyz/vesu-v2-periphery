@@ -6,16 +6,14 @@ trait IStarkgateERC20<TContractState> {
 }
 
 #[cfg(test)]
-mod Test_896150_Multiply {
+mod Test_2386336_Multiply {
     use alexandria_math::i257::I257Trait;
     use core::num::traits::Zero;
     use ekubo::interfaces::core::ICoreDispatcher;
     use ekubo::interfaces::erc20::{IERC20Dispatcher, IERC20DispatcherTrait};
     use ekubo::types::i129::i129;
     use ekubo::types::keys::PoolKey;
-    use snforge_std::{
-        load, start_cheat_caller_address, stop_cheat_caller_address,
-    };
+    use snforge_std::{load, start_cheat_caller_address, stop_cheat_caller_address};
     #[feature("deprecated-starknet-consts")]
     use starknet::{ContractAddress, contract_address_const, get_contract_address};
     use vesu::data_model::{Amount, AmountDenomination, ModifyPositionParams};
@@ -1247,8 +1245,6 @@ mod Test_896150_Multiply {
         };
 
         let (_, collateral, debt) = pool.position(usdc.contract_address, eth.contract_address, user);
-        println!("collateral: {}", collateral);
-        println!("debt:       {}", debt);
 
         let modify_lever_response = multiply.modify_lever(modify_lever_params);
 

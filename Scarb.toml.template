@@ -3,6 +3,7 @@ name = "vesu_v2_periphery"
 version = "0.1.0"
 cairo-version = "=2.11.4"
 edition = "2024_07"
+license = "BUSL-1.1"
 
 [lib]
 
@@ -11,14 +12,15 @@ casm = true
 sierra = true
 build-external-contracts = ["vesu::test::mock_oracle::MockPragmaOracle"]
 
-# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
-
 [dependencies]
 starknet = "2.11.4"
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
 alexandria_math = { git = "https://github.com/keep-starknet-strange/alexandria.git", rev = "c804e98" }
 ekubo = { git = "https://github.com/EkuboProtocol/abis", commit = "f4a16b95967c5596d5a3cd4e0422bb9a2e3eb017" }
-vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "7970bda9d27e2f21823148be81b3158c0546a9d3" }
+vesu = { git = "https://github.com/vesuxyz/vesu-v2", commit = "8cded3b9ac6101538255cfbf91b9ba46dd534d96" }
+
+[dev-dependencies]
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.46.0" }
+openzeppelin = "2.0.0"
 
 [tool.fmt]
 max-line-length = 120
@@ -29,8 +31,14 @@ name = "Mainnet"
 url = "MAINNET_RPC_URL"
 block_id.number = "BLOCK_NUMBER"
 
+[tool.voyager]
+liquidate = { path = "src/liquidate.cairo" }
+migrate = { path = "src/migrate.cairo" }
+multiply = { path = "src/multiply.cairo" }
+
 [scripts]
 buildRelease = "scarb --profile release build"
-deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
 deployLiquidate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployLiquidate.ts"
+deployMultiply = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMultiply.ts"
+deployMigrate = "scarb --profile release build && node --loader ts-node/esm ./scripts/deployMigrate.ts"
 test = "snforge test --max-n-steps 100000000"

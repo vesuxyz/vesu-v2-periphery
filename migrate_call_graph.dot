@@ -1,0 +1,162 @@
+digraph MigrateCallGraph {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11];
+    edge [fontname="Arial", fontsize=9];
+
+    // Define color scheme
+    bgcolor="white";
+
+    // Title
+    labelloc="t";
+    label=<
+        <table border="0" cellborder="0" cellspacing="0">
+            <tr><td><font point-size="18"><b>Migrate Contract Call Graph</b></font></td></tr>
+            <tr><td><font point-size="12">Vesu V2 Position Migration System</font></td></tr>
+        </table>
+    >;
+
+    // ===== Nodes =====
+
+    // Entry points (Public Interface) - Green
+    subgraph cluster_entry {
+        label="Public Entry Points";
+        style=filled;
+        color=lightgrey;
+
+        migrate_v1 [label="migrate_position_from_v1\n(Public)", fillcolor="#90EE90", color="#228B22", penwidth=2];
+        migrate_v2 [label="migrate_position_from_v2\n(Public)", fillcolor="#90EE90", color="#228B22", penwidth=2];
+    }
+
+    // Callback - Purple
+    subgraph cluster_callback {
+        label="Flash Loan Callback";
+        style=filled;
+        color=lightgrey;
+
+        on_flash_loan [label="on_flash_loan\n(IFlashLoanReceiver)", fillcolor="#DDA0DD", color="#8B008B", penwidth=2];
+    }
+
+    // Internal functions - Light Blue
+    subgraph cluster_internal {
+        label="Internal Functions";
+        style=filled;
+        color=lightgrey;
+
+        call_flash_loan [label="call_flash_loan", fillcolor="#87CEEB", color="#4682B4"];
+        _migrate_v1 [label="_migrate_position_from_v1", fillcolor="#87CEEB", color="#4682B4"];
+        _migrate_v2 [label="_migrate_position_from_v2", fillcolor="#87CEEB", color="#4682B4"];
+        create_v2_pos [label="create_v2_position", fillcolor="#87CEEB", color="#4682B4"];
+    }
+
+    // External Contracts - Orange
+    subgraph cluster_external {
+        label="External Dependencies";
+        style=filled;
+        color=lightgrey;
+
+        singleton_v2 [label="ISingletonV2Dispatcher\n(Vesu V1 Singleton)", fillcolor="#FFA500", color="#FF4500", penwidth=2];
+        pool_v2 [label="IPoolDispatcher\n(Vesu V2 Pool)", fillcolor="#FFA500", color="#FF4500", penwidth=2];
+        migrator [label="ITokenMigrationDispatcher\n(Token Migrator)", fillcolor="#FFA500", color="#FF4500", penwidth=2];
+        erc20 [label="IERC20Dispatcher\n(ERC20 Tokens)", fillcolor="#FFA500", color="#FF4500", penwidth=2];
+    }
+
+    // External function calls - Yellow
+    subgraph cluster_ext_calls {
+        label="External Contract Functions";
+        style=filled;
+        color=lightgrey;
+
+        // Singleton V2 calls
+        s_check_coll [label="check_collateralization", fillcolor="#FFFF99", color="#DAA520"];
+        s_position [label="position", fillcolor="#FFFF99", color="#DAA520"];
+        s_modify_pos [label="modify_position", fillcolor="#FFFF99", color="#DAA520"];
+
+        // Pool calls
+        p_position [label="position", fillcolor="#FFFF99", color="#DAA520"];
+        p_check_coll [label="check_collateralization", fillcolor="#FFFF99", color="#DAA520"];
+        p_modify_pos [label="modify_position", fillcolor="#FFFF99", color="#DAA520"];
+        p_flash_loan [label="flash_loan", fillcolor="#FFFF99", color="#DAA520"];
+
+        // Migrator calls
+        m_get_legacy [label="get_legacy_token", fillcolor="#FFFF99", color="#DAA520"];
+        m_get_new [label="get_new_token", fillcolor="#FFFF99", color="#DAA520"];
+        m_swap_new [label="swap_to_new", fillcolor="#FFFF99", color="#DAA520"];
+        m_swap_legacy [label="swap_to_legacy", fillcolor="#FFFF99", color="#DAA520"];
+
+        // ERC20 calls
+        e_approve [label="approve", fillcolor="#FFFF99", color="#DAA520"];
+    }
+
+    // ===== Edges (Call relationships) =====
+
+    // Entry point flows
+    migrate_v1 -> call_flash_loan [label="1. initiate", color="#228B22", penwidth=2];
+    migrate_v2 -> call_flash_loan [label="1. initiate", color="#228B22", penwidth=2];
+
+    // Flash loan flow
+    call_flash_loan -> p_flash_loan [label="2. request\nflash loan", color="#4682B4", style=dashed];
+    p_flash_loan -> pool_v2 [color="#DAA520", style=dashed];
+    pool_v2 -> on_flash_loan [label="3. callback", color="#8B008B", penwidth=2, style=dashed];
+
+    // Callback routing
+    on_flash_loan -> _migrate_v1 [label="if V1", color="#8B008B"];
+    on_flash_loan -> _migrate_v2 [label="if V2", color="#8B008B"];
+
+    // Migration V1 flow
+    _migrate_v1 -> s_check_coll [label="check LTV", color="#4682B4", style=dashed];
+    _migrate_v1 -> s_position [label="get position", color="#4682B4", style=dashed];
+    _migrate_v1 -> e_approve [label="approve debt", color="#4682B4", style=dashed];
+    _migrate_v1 -> s_modify_pos [label="close old\nposition", color="#4682B4", style=dashed];
+    _migrate_v1 -> create_v2_pos [label="create new", color="#4682B4", penwidth=2];
+
+    s_check_coll -> singleton_v2 [color="#DAA520", style=dashed];
+    s_position -> singleton_v2 [color="#DAA520", style=dashed];
+    s_modify_pos -> singleton_v2 [color="#DAA520", style=dashed];
+
+    // Migration V2 flow
+    _migrate_v2 -> p_position [label="get position", color="#4682B4", style=dashed];
+    _migrate_v2 -> p_check_coll [label="check LTV", color="#4682B4", style=dashed];
+    _migrate_v2 -> e_approve [label="approve debt", color="#4682B4", style=dashed];
+    _migrate_v2 -> p_modify_pos [label="close old\nposition", color="#4682B4", style=dashed];
+    _migrate_v2 -> create_v2_pos [label="create new", color="#4682B4", penwidth=2];
+
+    p_position -> pool_v2 [color="#DAA520", style=dashed];
+    p_check_coll -> pool_v2 [color="#DAA520", style=dashed];
+    p_modify_pos -> pool_v2 [color="#DAA520", style=dashed];
+
+    // Create V2 position flow
+    create_v2_pos -> m_get_legacy [label="get tokens", color="#4682B4", style=dashed];
+    create_v2_pos -> m_get_new [color="#4682B4", style=dashed];
+    create_v2_pos -> e_approve [label="approve\ncollateral", color="#4682B4", style=dashed];
+    create_v2_pos -> m_swap_new [label="swap if\nlegacy", color="#4682B4", style=dashed];
+    create_v2_pos -> p_modify_pos [label="open new\nposition", color="#4682B4", style=dashed];
+    create_v2_pos -> p_check_coll [label="verify LTV", color="#4682B4", style=dashed];
+    create_v2_pos -> m_swap_legacy [label="swap back\nif needed", color="#4682B4", style=dashed];
+
+    m_get_legacy -> migrator [color="#DAA520", style=dashed];
+    m_get_new -> migrator [color="#DAA520", style=dashed];
+    m_swap_new -> migrator [color="#DAA520", style=dashed];
+    m_swap_legacy -> migrator [color="#DAA520", style=dashed];
+
+    e_approve -> erc20 [color="#DAA520", style=dashed];
+
+    // Repayment flow
+    on_flash_loan -> e_approve [label="4. repay\nflash loan", color="#8B008B", style=dashed];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        color=white;
+
+        legend_entry [label="Entry Point", fillcolor="#90EE90", color="#228B22"];
+        legend_callback [label="Callback", fillcolor="#DDA0DD", color="#8B008B"];
+        legend_internal [label="Internal Function", fillcolor="#87CEEB", color="#4682B4"];
+        legend_external [label="External Contract", fillcolor="#FFA500", color="#FF4500"];
+        legend_ext_fn [label="External Function", fillcolor="#FFFF99", color="#DAA520"];
+
+        // Invisible edges for layout
+        legend_entry -> legend_callback -> legend_internal -> legend_external -> legend_ext_fn [style=invis];
+    }
+}
