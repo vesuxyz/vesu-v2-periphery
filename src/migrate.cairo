@@ -221,6 +221,14 @@ pub mod Migrate {
             ref self: ContractState, pool: IPoolDispatcher, asset: ContractAddress, amount: u256, data: Span<felt252>,
         ) {
             assert!(self.pool.read() == 0.try_into().unwrap(), "reentrant-call");
+
+            // take out the flashloan in the more liquid new token
+            let asset = if asset == self.migrator.read().get_legacy_token() {
+                self.migrator.read().get_new_token()
+            } else {
+                asset
+            };
+
             self.pool.write(pool.contract_address);
             pool.flash_loan(get_contract_address(), asset, amount, false, data);
             self.pool.write(0.try_into().unwrap());
@@ -462,14 +470,14 @@ pub mod Migrate {
             validate_ltv_range(from_ltv, compute_ltv(collateral_value, debt_value), from_to_max_ltv_delta);
 
             // if legacy token is debt asset, then convert borrowed new token back to the legacy token
-            if debt_asset_is_legacy_token {
-                assert!(
-                    IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
-                    "approve-failed",
-                );
-                // assume swap amounts are 1:1
-                migrator.swap_to_legacy(debt_delta);
-            }
+            // if debt_asset_is_legacy_token {
+            //     assert!(
+            //         IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
+            //         "approve-failed",
+            //     );
+            //     // assume swap amounts are 1:1
+            //     migrator.swap_to_legacy(debt_delta);
+            // }
 
             if emit_multiply_event {
                 self
@@ -501,6 +509,17 @@ pub mod Migrate {
             assert!(sender == get_contract_address(), "unknown-sender");
 
             let migrate_action: MigrateAction = Serde::deserialize(ref data).expect('invalid-migrate-action-data');
+
+            // if the flashloan was taken via the new token, swap it to the legacy token
+            let migrator = self.migrator.read();
+            if asset == migrator.get_new_token() {
+                assert!(
+                    IERC20Dispatcher { contract_address: asset }.approve(migrator.contract_address, amount),
+                    "approve-failed",
+                );
+                // assume swap amounts are 1:1
+                migrator.swap_to_legacy(amount);
+            }
 
             match migrate_action {
                 MigrateAction::MigratePositionFromV1(params) => self._migrate_position_from_v1(params, amount),
