@@ -469,16 +469,6 @@ pub mod Migrate {
                 .check_collateralization(collateral_asset, debt_asset, to_user);
             validate_ltv_range(from_ltv, compute_ltv(collateral_value, debt_value), from_to_max_ltv_delta);
 
-            // if legacy token is debt asset, then convert borrowed new token back to the legacy token
-            // if debt_asset_is_legacy_token {
-            //     assert!(
-            //         IERC20Dispatcher { contract_address: new_token }.approve(migrator.contract_address, debt_delta),
-            //         "approve-failed",
-            //     );
-            //     // assume swap amounts are 1:1
-            //     migrator.swap_to_legacy(debt_delta);
-            // }
-
             if emit_multiply_event {
                 self
                     .emit(
