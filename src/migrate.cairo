@@ -222,7 +222,7 @@ pub mod Migrate {
         ) {
             assert!(self.pool.read() == 0.try_into().unwrap(), "reentrant-call");
 
-            // take out the flashloan in the more liquid new token
+            // take out the flash loan in the more liquid new token
             let asset = if asset == self.migrator.read().get_legacy_token() {
                 self.migrator.read().get_new_token()
             } else {
@@ -500,7 +500,7 @@ pub mod Migrate {
 
             let migrate_action: MigrateAction = Serde::deserialize(ref data).expect('invalid-migrate-action-data');
 
-            // if the flashloan was taken via the new token, swap it to the legacy token
+            // if the flash loan was taken via the new token, swap it to the legacy token
             let migrator = self.migrator.read();
             if asset == migrator.get_new_token() {
                 assert!(
