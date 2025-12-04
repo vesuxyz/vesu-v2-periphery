@@ -500,9 +500,13 @@ pub mod Migrate {
 
             let migrate_action: MigrateAction = Serde::deserialize(ref data).expect('invalid-migrate-action-data');
 
-            // if the flash loan was taken via the new token, swap it to the legacy token
+            // if debt asset is legacy token and flash loan was taken via new token, swap to legacy token
+            let debt_asset = match migrate_action.clone() {
+                MigrateAction::MigratePositionFromV1(params) => params.debt_asset,
+                MigrateAction::MigratePositionFromV2(params) => params.debt_asset,
+            };
             let migrator = self.migrator.read();
-            if asset == migrator.get_new_token() {
+            if debt_asset == migrator.get_legacy_token() && asset == migrator.get_new_token() {
                 assert!(
                     IERC20Dispatcher { contract_address: asset }.approve(migrator.contract_address, amount),
                     "approve-failed",
